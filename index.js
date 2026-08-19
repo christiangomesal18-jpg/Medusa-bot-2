@@ -22,6 +22,13 @@ const client = new Client({
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
+const PIX_KEY = process.env.PIX_KEY;
+
+const tickets = new Map();
+
+// ========================================
+// COMANDO
+// ========================================
 
 const commands = [
   new SlashCommandBuilder()
@@ -29,6 +36,10 @@ const commands = [
     .setDescription('Envia o painel das caixas.')
     .toJSON()
 ];
+
+// ========================================
+// BOT ONLINE
+// ========================================
 
 client.once('clientReady', async () => {
 
@@ -66,7 +77,7 @@ client.on('interactionCreate', async interaction => {
   try {
 
     // ====================================
-    // /PAINEL
+    // PAINEL
     // ====================================
 
     if (
@@ -118,7 +129,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ====================================
-    // BOTÃO COMPRAR CAIXA
+    // COMPRAR CAIXA
     // ====================================
 
     if (
@@ -147,7 +158,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ====================================
-    // RECEBER QUANTIDADE
+    // CRIAR TICKET
     // ====================================
 
     if (
@@ -175,10 +186,6 @@ client.on('interactionCreate', async interaction => {
         .toFixed(2)
         .replace('.', ',');
 
-      // ==================================
-      // CRIAR TICKET
-      // ==================================
-
       const canal =
         await interaction.guild.channels.create({
 
@@ -194,6 +201,7 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
+
             },
 
             {
@@ -204,11 +212,26 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.ReadMessageHistory
               ]
+
             }
 
           ]
 
         });
+
+      tickets.set(interaction.user.id, {
+
+        userId: interaction.user.id,
+
+        quantidade: quantidade,
+
+        valor: valor,
+
+        ticketChannelId: canal.id,
+
+        paymentChannelId: null
+
+      });
 
       const embed = new EmbedBuilder()
         .setTitle('🎁 SUA CAIXA')
@@ -259,16 +282,187 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ====================================
-    // FECHAR TICKET
+    // REALIZAR PAGAMENTO
     // ====================================
 
     if (
       interaction.isButton() &&
-      interaction.customId === 'fechar_ticket'
+      interaction.customId === 'realizar_pagamento'
+    ) {
+
+      const ticket = tickets.get(
+        interaction.user.id
+      );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      if (!PIX_KEY) {
+
+        return interaction.reply({
+
+          content:
+            '❌ A variável PIX_KEY não está configurada no Railway.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      const pagamento =
+        await interaction.guild.channels.create({
+
+          name:
+            `pagamento-${interaction.user.id}`,
+
+          type:
+            ChannelType.GuildText,
+
+          permissionOverwrites: [
+
+            {
+              id:
+                interaction.guild.roles.everyone.id,
+
+              deny: [
+                PermissionFlagsBits.ViewChannel
+              ]
+
+            },
+
+            {
+              id:
+                interaction.user.id,
+
+              allow: [
+
+                PermissionFlagsBits.ViewChannel,
+
+                PermissionFlagsBits.SendMessages,
+
+                PermissionFlagsBits.ReadMessageHistory,
+
+                PermissionFlagsBits.AttachFiles
+
+              ]
+
+            }
+
+          ]
+
+        });
+
+      ticket.paymentChannelId =
+        pagamento.id;
+
+      const embed =
+        new EmbedBuilder()
+
+          .setTitle(
+            '💳 PAGAMENTO — MEDUSA STORE'
+          )
+
+          .setDescription(
+
+            `🎁 Caixas: **${ticket.quantidade}**\n` +
+
+            `💰 Valor: **R$ ${ticket.valor}**\n\n` +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
+
+            '📸 Após realizar o pagamento, ' +
+            'envie o comprovante neste canal.'
+
+          );
+
+      const botoes =
+        new ActionRowBuilder().addComponents(
+
+          new ButtonBuilder()
+            .setCustomId('copiar_pix')
+            .setLabel('Copiar chave Pix')
+            .setEmoji('📋')
+            .setStyle(ButtonStyle.Primary),
+
+          new ButtonBuilder()
+            .setCustomId('fechar_pagamento')
+            .setLabel('Fechar')
+            .setEmoji('🔒')
+            .setStyle(ButtonStyle.Danger)
+
+        );
+
+      await pagamento.send({
+
+        content:
+          `${interaction.user}`,
+
+        embeds:
+          [embed],
+
+        components:
+          [botoes]
+
+      });
+
+      return interaction.reply({
+
+        content:
+          `💳 Canal de pagamento criado: ${pagamento}`,
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
+    // COPIAR PIX
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'copiar_pix'
+    ) {
+
+      return interaction.reply({
+
+        content:
+          `📋 **Chave Pix:**\n\`${PIX_KEY}\``,
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
+    // FECHAR
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      (
+        interaction.customId === 'fechar_ticket' ||
+        interaction.customId === 'fechar_pagamento'
+      )
     ) {
 
       await interaction.reply(
-        '🔒 Fechando ticket...'
+        '🔒 Fechando...'
       );
 
       setTimeout(() => {
@@ -292,7 +486,8 @@ client.on('interactionCreate', async interaction => {
 
       await interaction.reply({
 
-        content: '❌ Ocorreu um erro.',
+        content:
+          '❌ Ocorreu um erro.',
 
         ephemeral: true
 
