@@ -1,29 +1,125 @@
 ;
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  PermissionFlagsBits,
+  ChannelType,
+  EmbedBuilder
+} = require('discord.js');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
 
-const command = new SlashCommandBuilder()
-  .setName('ping')
-  .setDescription('Responde com Pong!');
+const TOKEN = process.env.TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const PIX_KEY = process.env.PIX_KEY;
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
 
-const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+const tickets = new Map();
 
-async function registerCommand() {
+const commands = [
+  new SlashCommandBuilder()
+    .setName('painel')
+    .setDescription('Envia o painel de tickets.'),
+
+  new SlashCommandBuilder()
+    .setName('ping')
+    .setDescription('Verifica se o bot está online.')
+].map(command => command.toJSON());
+
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+
+async function registerCommands() {
   try {
-    console.log('Registrando comando /ping...');
-
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: [command.toJSON()] }
+      Routes.applicationCommands(CLIENT_ID),
+      { body: commands }
     );
 
-    console.log('Comando registrado!');
+    console.log('Comandos registrados!');
   } catch (error) {
-    console.error(error);
+    console.error('Erro ao registrar comandos:', error);
   }
+}
+
+function isStaff(interaction) {
+  if (
+    interaction.memberPermissions &&
+    interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)
+  ) {
+    return true;
+  }
+
+  if (
+    STAFF_ROLE_ID &&
+    interaction.member &&
+    interaction.member.roles &&
+    interaction.member.roles.cache.has(STAFF_ROLE_ID)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function ticketButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('editar_valor')
+      .setLabel('Editar quantia')
+      .setEmoji('💰')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('realizar_pagamento')
+      .setLabel('Realizar pagamento')
+      .setEmoji('💳')
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId('fechar_ticket')
+      .setLabel('Fechar ticket')
+      .setEmoji('🔒')
+      .setStyle(ButtonStyle.Danger)
+  );
+}
+
+function paymentButtons() {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('copiar_pix')
+      .setLabel('Copiar chave Pix')
+      .setEmoji('📋')
+      .setStyle(ButtonStyle.Primary),
+
+    new ButtonBuilder()
+      .setCustomId('aprovar_pagamento')
+      .setLabel('Aprovar pagamento')
+      .setEmoji('✅')
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId('reprovar_pagamento')
+      .setLabel('Reprovar pagamento')
+      .setEmoji('❌')
+      .setStyle(ButtonStyle.Danger),
+
+    new ButtonBuilder()
+      .setCustomId('fechar_ticket')
+      .setLabel('Fechar ticket')
+      .setEmoji('🔒')
+      .setStyle(ButtonStyle.Secondary)
+  );
 }
 
 client.once('clientReady', () => {
@@ -31,12 +127,16 @@ client.once('clientReady', () => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  try {
 
-  if (interaction.commandName === 'ping') {
-    await interaction.reply('Pong! 🏓');
-  }
-});
+    // =========================
+    // COMANDOS
+    // =========================
 
-registerCommand();
-client.login(process.env.TOKEN);
+    if (interaction.isChatInputCommand()) {
+
+      if (interaction.commandName === 'ping') {
+        return interaction.reply('Pong! 🏓');
+      }
+
+      if
