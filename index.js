@@ -33,7 +33,6 @@ const commands = [
 ];
 
 client.once('clientReady', async () => {
-
   console.log(`BOT ONLINE: ${client.user.tag}`);
 
   const rest = new REST({
@@ -41,7 +40,6 @@ client.once('clientReady', async () => {
   }).setToken(TOKEN);
 
   try {
-
     await rest.put(
       Routes.applicationCommands(CLIENT_ID),
       {
@@ -52,21 +50,15 @@ client.once('clientReady', async () => {
     console.log('COMANDO /PAINEL REGISTRADO');
 
   } catch (error) {
-
     console.error(error);
-
   }
-
 });
 
 client.on('interactionCreate', async interaction => {
 
   try {
 
-    // ====================================
     // PAINEL
-    // ====================================
-
     if (
       interaction.isChatInputCommand() &&
       interaction.commandName === 'painel'
@@ -76,7 +68,6 @@ client.on('interactionCreate', async interaction => {
         .setTitle('🎁 CAIXAS — MEDUSA STORE 🪼')
         .setDescription(
           '**💎 PRÊMIOS DAS CAIXAS**\n\n' +
-
           '🎁 R$ 50,00\n' +
           '🎁 R$ 25,00\n' +
           '🎁 R$ 10,00\n' +
@@ -90,7 +81,6 @@ client.on('interactionCreate', async interaction => {
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
           '**💸 VALOR DA CAIXA**\n\n' +
-
           '🎁 1 Caixa — **R$ 0,50**\n\n' +
 
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -112,13 +102,9 @@ client.on('interactionCreate', async interaction => {
         embeds: [embed],
         components: [botoes]
       });
-
     }
 
-    // ====================================
     // COMPRAR CAIXA
-    // ====================================
-
     if (
       interaction.isButton() &&
       interaction.customId === 'comprar_caixa'
@@ -141,13 +127,9 @@ client.on('interactionCreate', async interaction => {
       );
 
       return interaction.showModal(modal);
-
     }
 
-    // ====================================
     // CRIAR TICKET
-    // ====================================
-
     if (
       interaction.isModalSubmit() &&
       interaction.customId === 'quantidade_caixa'
@@ -166,7 +148,6 @@ client.on('interactionCreate', async interaction => {
           content: '❌ Digite uma quantidade válida.',
           ephemeral: true
         });
-
       }
 
       const valor = (quantidade * 0.50)
@@ -188,7 +169,6 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
-
             },
 
             {
@@ -199,23 +179,17 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.ReadMessageHistory
               ]
-
             }
 
           ]
-
         });
 
       tickets.set(interaction.user.id, {
 
         userId: interaction.user.id,
-
         quantidade: quantidade,
-
         valor: valor,
-
         ticketChannelId: canal.id,
-
         paymentChannelId: null
 
       });
@@ -248,30 +222,18 @@ client.on('interactionCreate', async interaction => {
       );
 
       await canal.send({
-
         content: `${interaction.user}`,
-
         embeds: [embed],
-
         components: [botoes]
-
       });
 
       return interaction.reply({
-
-        content:
-          `✅ Seu ticket foi criado: ${canal}`,
-
+        content: `✅ Seu ticket foi criado: ${canal}`,
         ephemeral: true
-
       });
-
     }
 
-    // ====================================
     // REALIZAR PAGAMENTO
-    // ====================================
-
     if (
       interaction.isButton() &&
       interaction.customId === 'realizar_pagamento'
@@ -284,27 +246,18 @@ client.on('interactionCreate', async interaction => {
       if (!ticket) {
 
         return interaction.reply({
-
-          content:
-            '❌ Ticket não encontrado.',
-
+          content: '❌ Ticket não encontrado.',
           ephemeral: true
-
         });
-
       }
 
       if (!PIX_KEY) {
 
         return interaction.reply({
-
           content:
             '❌ A variável PIX_KEY não está configurada no Railway.',
-
           ephemeral: true
-
         });
-
       }
 
       const pagamento =
@@ -325,7 +278,6 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
-
             },
 
             {
@@ -333,21 +285,14 @@ client.on('interactionCreate', async interaction => {
                 interaction.user.id,
 
               allow: [
-
                 PermissionFlagsBits.ViewChannel,
-
                 PermissionFlagsBits.SendMessages,
-
                 PermissionFlagsBits.ReadMessageHistory,
-
                 PermissionFlagsBits.AttachFiles
-
               ]
-
             }
 
           ]
-
         });
 
       ticket.paymentChannelId =
@@ -355,15 +300,12 @@ client.on('interactionCreate', async interaction => {
 
       const embed =
         new EmbedBuilder()
-
           .setTitle(
             '💳 PAGAMENTO — MEDUSA STORE'
           )
-
           .setDescription(
 
             `🎁 Caixas: **${ticket.quantidade}**\n` +
-
             `💰 Valor: **R$ ${ticket.valor}**\n\n` +
 
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -371,7 +313,6 @@ client.on('interactionCreate', async interaction => {
             `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
 
             '📸 Após realizar o pagamento, ' +
-
             'envie o comprovante neste canal.'
 
           );
@@ -414,13 +355,9 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
-
     }
 
-    // ====================================
     // COPIAR PIX
-    // ====================================
-
     if (
       interaction.isButton() &&
       interaction.customId === 'copiar_pix'
@@ -434,13 +371,9 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
-
     }
 
-    // ====================================
     // FECHAR
-    // ====================================
-
     if (
       interaction.isButton() &&
       (
@@ -460,7 +393,6 @@ client.on('interactionCreate', async interaction => {
           .catch(() => {});
 
       }, 1500);
-
     }
 
   } catch (error) {
@@ -482,7 +414,6 @@ client.on('interactionCreate', async interaction => {
       }).catch(() => {});
 
     }
-
   }
 
 });
