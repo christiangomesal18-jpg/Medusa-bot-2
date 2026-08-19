@@ -1,5 +1,5 @@
-
-     const {
+ 
+const {
   Client,
   GatewayIntentBits,
   REST,
@@ -34,7 +34,7 @@ const commands = [
 
   new SlashCommandBuilder()
     .setName('painel')
-    .setDescription('Envia o painel de tickets.')
+    .setDescription('Envia o painel da Medusa Store.')
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -55,7 +55,9 @@ async function registerCommands() {
 function isStaff(interaction) {
   if (
     interaction.memberPermissions &&
-    interaction.memberPermissions.has(PermissionFlagsBits.ManageChannels)
+    interaction.memberPermissions.has(
+      PermissionFlagsBits.ManageChannels
+    )
   ) {
     return true;
   }
@@ -129,6 +131,10 @@ client.once('clientReady', () => {
 client.on('interactionCreate', async interaction => {
   try {
 
+    // =========================
+    // COMANDOS
+    // =========================
+
     if (interaction.isChatInputCommand()) {
 
       if (interaction.commandName === 'ping') {
@@ -139,16 +145,52 @@ client.on('interactionCreate', async interaction => {
 
         if (!isStaff(interaction)) {
           return interaction.reply({
-            content: 'Você não tem permissão para usar este comando.',
+            content:
+              'Você não tem permissão para usar este comando.',
             ephemeral: true
           });
         }
 
         const embed = new EmbedBuilder()
-          .setTitle('🎫 Atendimento')
           .setDescription(
-            'Clique abaixo para abrir um ticket.\n\n' +
-            'Você poderá escolher o valor e depois realizar o pagamento.'
+            '🎁 **CAIXAS — MEDUSA STORE 🪼**\n\n' +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            '💎 **PRÊMIOS DAS CAIXAS**\n\n' +
+            '🎁 R$ 25,00 Pix\n' +
+            '🎁 R$ 10,00 Pix\n' +
+            '🎁 R$ 5,00 Pix\n' +
+            '🎁 R$ 2,00 Pix\n' +
+            '🎁 Cargo Personalizado\n' +
+            '🎁 Cargo Especial\n' +
+            '🎁 Cargo Especial\n' +
+            '🎁 Nada\n\n' +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            '💸 **VALOR DA CAIXA**\n\n' +
+            '🎁 1 Caixa — R$ 0,50\n\n' +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            '🛒 **COMO REALIZAR A COMPRA**\n\n' +
+            '1️⃣ Escolha a quantidade de Caixas desejada.\n' +
+            '2️⃣ Informe sua escolha neste ticket.\n' +
+            '3️⃣ A Staff enviará as instruções de pagamento.\n' +
+            '4️⃣ Envie o comprovante após realizar o pagamento.\n' +
+            '5️⃣ Aguarde a confirmação e a entrega das Caixas.\n\n' +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            '⚠️ **IMPORTANTE**\n\n' +
+            '• Confira a quantidade e o valor antes de comprar.\n' +
+            '• Guarde o comprovante da compra.\n' +
+            '• Em caso de problemas, informe a Staff neste ticket.\n' +
+            '• Caso receba ban recentemente após a compra, a Medusa Store não se responsabiliza pela perda das Caixas.\n\n' +
+
+            '🪼 **MEDUSA STORE**\n' +
+            'Mais Caixas. Mais chances. Mais diversão. ⚡💜'
           );
 
         const row = new ActionRowBuilder().addComponents(
@@ -168,6 +210,10 @@ client.on('interactionCreate', async interaction => {
       return;
     }
 
+    // =========================
+    // ABRIR TICKET
+    // =========================
+
     if (
       interaction.isButton() &&
       interaction.customId === 'abrir_ticket'
@@ -175,7 +221,8 @@ client.on('interactionCreate', async interaction => {
 
       const existing = interaction.guild.channels.cache.find(
         channel =>
-          channel.name === `ticket-${interaction.user.username.toLowerCase()}` &&
+          channel.name ===
+            `ticket-${interaction.user.username.toLowerCase()}` &&
           channel.type === ChannelType.GuildText
       );
 
@@ -188,48 +235,82 @@ client.on('interactionCreate', async interaction => {
 
       const modal = new ModalBuilder()
         .setCustomId('valor_inicial')
-        .setTitle('Valor do pagamento');
+        .setTitle('Quantidade de Caixas');
 
-      const valor = new TextInputBuilder()
-        .setCustomId('valor')
-        .setLabel('Digite o valor')
-        .setPlaceholder('Ex: 25,00')
+      const quantidade = new TextInputBuilder()
+        .setCustomId('quantidade')
+        .setLabel('Quantidade de Caixas')
+        .setPlaceholder('Ex: 1')
         .setStyle(TextInputStyle.Short)
-        .setRequired(true);
+        .setRequired(true)
+        .setMaxLength(10);
 
       modal.addComponents(
-        new ActionRowBuilder().addComponents(valor)
+        new ActionRowBuilder().addComponents(quantidade)
       );
 
       return interaction.showModal(modal);
     }
+
+    // =========================
+    // CRIAR TICKET
+    // =========================
 
     if (
       interaction.isModalSubmit() &&
       interaction.customId === 'valor_inicial'
     ) {
 
-      const valor = interaction.fields.getTextInputValue('valor');
+      const quantidade =
+        interaction.fields.getTextInputValue('quantidade');
 
-      const channel = await interaction.guild.channels.create({
-        name: `ticket-${interaction.user.username.toLowerCase()}`,
-        type: ChannelType.GuildText,
+      const numero = Number(
+        quantidade.replace(',', '.')
+      );
 
-        permissionOverwrites: [
-          {
-            id: interaction.guild.roles.everyone.id,
-            deny: [PermissionFlagsBits.ViewChannel]
-          },
-          {
-            id: interaction.user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory
-            ]
-          }
-        ]
-      });
+      if (
+        !Number.isInteger(numero) ||
+        numero < 1
+      ) {
+        return interaction.reply({
+          content:
+            'Digite uma quantidade válida de Caixas. Ex: `1`',
+          ephemeral: true
+        });
+      }
+
+      const valorTotal = (numero * 0.50)
+        .toFixed(2)
+        .replace('.', ',');
+
+      const category = interaction.guild.channels.cache.find(
+        channel =>
+          channel.type === ChannelType.GuildCategory &&
+          channel.name.toLowerCase() === 'tickets'
+      );
+
+      const channel =
+        await interaction.guild.channels.create({
+          name:
+            `ticket-${interaction.user.username.toLowerCase()}`,
+          type: ChannelType.GuildText,
+          parent: category ? category.id : undefined,
+
+          permissionOverwrites: [
+            {
+              id: interaction.guild.roles.everyone.id,
+              deny: [PermissionFlagsBits.ViewChannel]
+            },
+            {
+              id: interaction.user.id,
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.ReadMessageHistory
+              ]
+            }
+          ]
+        });
 
       if (STAFF_ROLE_ID) {
         await channel.permissionOverwrites.create(
@@ -244,16 +325,21 @@ client.on('interactionCreate', async interaction => {
 
       tickets.set(interaction.user.id, {
         userId: interaction.user.id,
-        valor: valor,
+        quantidade: numero,
+        valor: valorTotal,
         ticketChannelId: channel.id,
-        paymentChannelId: null
+        paymentChannelId: null,
+        status: 'aguardando_pagamento'
       });
 
       const embed = new EmbedBuilder()
-        .setTitle('🎫 Ticket')
+        .setTitle('🎁 Compra de Caixas')
         .setDescription(
-          `Valor atual: **R$ ${valor}**\n\n` +
-          'Você pode alterar a quantia ou realizar o pagamento.'
+          `🎁 **Quantidade:** ${numero} Caixa(s)\n` +
+          `💰 **Valor total:** R$ ${valorTotal}\n\n` +
+          'Confira os dados acima.\n' +
+          'Caso precise alterar a quantidade, clique em **Editar quantia**.\n\n' +
+          'Quando estiver tudo certo, clique em **Realizar pagamento**.'
         );
 
       await channel.send({
@@ -267,6 +353,10 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
       });
     }
+
+    // =========================
+    // EDITAR QUANTIDADE
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -288,22 +378,27 @@ client.on('interactionCreate', async interaction => {
 
       const modal = new ModalBuilder()
         .setCustomId('editar_valor_modal')
-        .setTitle('Editar quantia');
+        .setTitle('Editar quantidade');
 
-      const valor = new TextInputBuilder()
-        .setCustomId('valor')
-        .setLabel('Novo valor')
-        .setPlaceholder('Ex: 50,00')
-        .setValue(ticket.valor)
+      const quantidade = new TextInputBuilder()
+        .setCustomId('quantidade')
+        .setLabel('Nova quantidade')
+        .setPlaceholder('Ex: 5')
+        .setValue(String(ticket.quantidade))
         .setStyle(TextInputStyle.Short)
-        .setRequired(true);
+        .setRequired(true)
+        .setMaxLength(10);
 
       modal.addComponents(
-        new ActionRowBuilder().addComponents(valor)
+        new ActionRowBuilder().addComponents(quantidade)
       );
 
       return interaction.showModal(modal);
     }
+
+    // =========================
+    // SALVAR NOVA QUANTIDADE
+    // =========================
 
     if (
       interaction.isModalSubmit() &&
@@ -323,15 +418,41 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
-      const valor = interaction.fields.getTextInputValue('valor');
+      const quantidade =
+        interaction.fields.getTextInputValue('quantidade');
 
-      ticket.valor = valor;
+      const numero = Number(
+        quantidade.replace(',', '.')
+      );
+
+      if (
+        !Number.isInteger(numero) ||
+        numero < 1
+      ) {
+        return interaction.reply({
+          content:
+            'Digite uma quantidade válida. Ex: `5`',
+          ephemeral: true
+        });
+      }
+
+      ticket.quantidade = numero;
+
+      ticket.valor = (numero * 0.50)
+        .toFixed(2)
+        .replace('.', ',');
 
       return interaction.reply({
-        content: `Valor alterado para **R$ ${valor}**.`,
+        content:
+          `Quantidade alterada para **${numero} Caixa(s)**.\n` +
+          `Novo valor: **R$ ${ticket.valor}**.`,
         ephemeral: true
       });
     }
+
+    // =========================
+    // REALIZAR PAGAMENTO
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -353,15 +474,39 @@ client.on('interactionCreate', async interaction => {
 
       if (!PIX_KEY) {
         return interaction.reply({
-          content: 'A chave Pix não está configurada no Railway.',
+          content:
+            'A chave Pix não está configurada no Railway.',
           ephemeral: true
         });
       }
 
+      if (ticket.paymentChannelId) {
+        const existing =
+          interaction.guild.channels.cache.get(
+            ticket.paymentChannelId
+          );
+
+        if (existing) {
+          return interaction.reply({
+            content:
+              `O canal de pagamento já existe: ${existing}`,
+            ephemeral: true
+          });
+        }
+      }
+
+      const category = interaction.guild.channels.cache.find(
+        channel =>
+          channel.type === ChannelType.GuildCategory &&
+          channel.name.toLowerCase() === 'pagamentos'
+      );
+
       const paymentChannel =
         await interaction.guild.channels.create({
-          name: `pagamento-${interaction.user.username.toLowerCase()}`,
+          name:
+            `pagamento-${interaction.user.username.toLowerCase()}`,
           type: ChannelType.GuildText,
+          parent: category ? category.id : undefined,
 
           permissionOverwrites: [
             {
@@ -391,14 +536,22 @@ client.on('interactionCreate', async interaction => {
       }
 
       ticket.paymentChannelId = paymentChannel.id;
+      ticket.status = 'aguardando_comprovante';
 
       const embed = new EmbedBuilder()
-        .setTitle('💳 Pagamento')
+        .setTitle('💳 REALIZAR PAGAMENTO')
         .setDescription(
+          `🎁 **Caixas:** ${ticket.quantidade}\n` +
           `💰 **Valor:** R$ ${ticket.valor}\n\n` +
-          `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
-          'Faça o pagamento e envie o comprovante aqui.\n\n' +
-          'A aprovação será feita manualmente pela staff.'
+
+          `🔑 **Chave Pix:**\n` +
+          `\`${PIX_KEY}\`\n\n` +
+
+          '1️⃣ Faça o pagamento.\n' +
+          '2️⃣ Envie o comprovante neste canal.\n' +
+          '3️⃣ Aguarde a conferência da Staff.\n\n' +
+
+          '⚠️ A aprovação é feita **manualmente** pela Staff.'
         );
 
       await paymentChannel.send({
@@ -408,10 +561,15 @@ client.on('interactionCreate', async interaction => {
       });
 
       return interaction.reply({
-        content: `Canal de pagamento criado: ${paymentChannel}`,
+        content:
+          `Canal de pagamento criado: ${paymentChannel}`,
         ephemeral: true
       });
     }
+
+    // =========================
+    // COPIAR PIX
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -426,10 +584,15 @@ client.on('interactionCreate', async interaction => {
       }
 
       return interaction.reply({
-        content: `Chave Pix:\n\`${PIX_KEY}\``,
+        content:
+          `📋 **Chave Pix:**\n\`${PIX_KEY}\``,
         ephemeral: true
       });
     }
+
+    // =========================
+    // APROVAR PAGAMENTO
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -438,13 +601,15 @@ client.on('interactionCreate', async interaction => {
 
       if (!isStaff(interaction)) {
         return interaction.reply({
-          content: 'Somente a staff pode aprovar o pagamento.',
+          content:
+            'Somente a Staff pode aprovar o pagamento.',
           ephemeral: true
         });
       }
 
       const ticket = [...tickets.values()].find(
-        t => t.paymentChannelId === interaction.channel.id
+        t =>
+          t.paymentChannelId === interaction.channel.id
       );
 
       if (!ticket) {
@@ -458,9 +623,13 @@ client.on('interactionCreate', async interaction => {
       ticket.aprovadoPor = interaction.user.id;
 
       return interaction.reply(
-        `Pagamento de **R$ ${ticket.valor}** aprovado manualmente por ${interaction.user}.`
+        `✅ Pagamento de **R$ ${ticket.valor}** aprovado por ${interaction.user}.`
       );
     }
+
+    // =========================
+    // REPROVAR PAGAMENTO
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -469,13 +638,15 @@ client.on('interactionCreate', async interaction => {
 
       if (!isStaff(interaction)) {
         return interaction.reply({
-          content: 'Somente a staff pode reprovar o pagamento.',
+          content:
+            'Somente a Staff pode reprovar o pagamento.',
           ephemeral: true
         });
       }
 
       const ticket = [...tickets.values()].find(
-        t => t.paymentChannelId === interaction.channel.id
+        t =>
+          t.paymentChannelId === interaction.channel.id
       );
 
       if (!ticket) {
@@ -489,9 +660,13 @@ client.on('interactionCreate', async interaction => {
       ticket.reprovadoPor = interaction.user.id;
 
       return interaction.reply(
-        `Pagamento de **R$ ${ticket.valor}** reprovado manualmente por ${interaction.user}.`
+        `❌ Pagamento de **R$ ${ticket.valor}** reprovado por ${interaction.user}.`
       );
     }
+
+    // =========================
+    // FECHAR TICKET
+    // =========================
 
     if (
       interaction.isButton() &&
@@ -516,13 +691,14 @@ client.on('interactionCreate', async interaction => {
         !isStaff(interaction)
       ) {
         return interaction.reply({
-          content: 'Você não pode fechar este ticket.',
+          content:
+            'Você não pode fechar este ticket.',
           ephemeral: true
         });
       }
 
       await interaction.reply(
-        'Ticket será fechado em 5 segundos...'
+        '🔒 Este ticket será fechado em 5 segundos...'
       );
 
       setTimeout(async () => {
@@ -550,14 +726,18 @@ client.on('interactionCreate', async interaction => {
         tickets.delete(ticket.userId);
 
       }, 5000);
+
+      return;
     }
 
   } catch (error) {
+
     console.error('ERRO:', error);
 
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: 'Ocorreu um erro.',
+        content:
+          'Ocorreu um erro ao executar esta ação.',
         ephemeral: true
       }).catch(() => {});
     }
@@ -565,4 +745,5 @@ client.on('interactionCreate', async interaction => {
 });
 
 registerCommands();
+
 client.login(TOKEN);
