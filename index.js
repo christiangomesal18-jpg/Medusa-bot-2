@@ -1,4 +1,4 @@
- 
+
 const {
   Client,
   GatewayIntentBits,
@@ -16,6 +16,11 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
+const discordTranscripts = require('discord-html-transcripts');
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
 });
@@ -24,8 +29,28 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const PIX_KEY = process.env.PIX_KEY;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || '';
+const PUBLIC_URL = process.env.PUBLIC_URL;
 
 const tickets = new Map();
+
+const app = express();
+const transcriptFolder = path.join(__dirname, 'transcripts');
+
+if (!fs.existsSync(transcriptFolder)) {
+  fs.mkdirSync(transcriptFolder, { recursive: true });
+}
+
+app.use('/transcripts', express.static(transcriptFolder));
+
+app.get('/', (req, res) => {
+  res.send('Medusa Store - Bot online.');
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Servidor web iniciado na porta ${PORT}`);
+});
 
 const commands = [
   new SlashCommandBuilder()
@@ -122,6 +147,64 @@ function paymentButtons() {
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Secondary)
   );
+}
+
+async function gerarTranscript(ticketChannel) {
+  const attachment = await discordTranscripts.createTranscript(
+    ticketChannel,
+    {
+      limit: -1,
+      returnType: 'buffer',
+      filename: `transcript-${ticketChannel.id}.html`,
+      saveImages: false,
+      poweredBy: true
+    }
+  );
+
+  const fileName = `transcript-${ticketChannel.id}.html`;
+  const filePath = path.join(transcriptFolder, fileName);
+
+  fs.writeFileSync(filePath, attachment);
+
+  if (!PUBLIC_URL) {
+    return null;
+  }
+
+  return `${PUBLIC_URL}/transcripts/${fileName}`;
+}
+
+async function enviarTranscriptDM(user, ticketChannel, valor) {
+  try {
+    const link = await gerarTranscript(ticketChannel);
+
+    if (!link) {
+      await user.send(
+        '✅ **Pagamento aprovado!**\n\n' +
+        `💰 Valor: **R$ ${valor}**\n\n` +
+        '📄 O transcript foi gerado, mas o link público ainda não foi configurado no Railway.'
+      );
+
+      return;
+    }
+
+    await user.send(
+      '✅ **Pagamento aprovado!**\n\n' +
+      `💰 Valor: **R$ ${valor}**\n\n` +
+      '📄 **Transcript da compra:**\n' +
+      link
+    );
+
+    return link;
+
+  } catch (error) {
+    console.error('Erro ao enviar transcript por DM:', error);
+
+    await user.send(
+      '✅ **Pagamento aprovado!**\n\n' +
+      `💰 Valor: **R$ ${valor}**\n\n` +
+      'Não consegui enviar o transcript por DM.'
+    ).catch(() => {});
+  }
 }
 
 client.once('clientReady', () => {
@@ -274,7 +357,7 @@ client.on('interactionCreate', async interaction => {
       ) {
         return interaction.reply({
           content:
-            'Digite uma quantidade válida de Caixas. Ex: `1`',
+            'Digite uma quantidade válida. Ex: `1`',
           ephemeral: true
         });
       }
@@ -451,7 +534,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // =========================
-    // REALIZAR PAGAMENTO
+    // PAGAMENTO
     // =========================
 
     if (
@@ -478,21 +561,6 @@ client.on('interactionCreate', async interaction => {
             'A chave Pix não está configurada no Railway.',
           ephemeral: true
         });
-      }
-
-      if (ticket.paymentChannelId) {
-        const existing =
-          interaction.guild.channels.cache.get(
-            ticket.paymentChannelId
-          );
-
-        if (existing) {
-          return interaction.reply({
-            content:
-              `O canal de pagamento já existe: ${existing}`,
-            ephemeral: true
-          });
-        }
       }
 
       const category = interaction.guild.channels.cache.find(
@@ -543,14 +611,10 @@ client.on('interactionCreate', async interaction => {
         .setDescription(
           `🎁 **Caixas:** ${ticket.quantidade}\n` +
           `💰 **Valor:** R$ ${ticket.valor}\n\n` +
-
-          `🔑 **Chave Pix:**\n` +
-          `\`${PIX_KEY}\`\n\n` +
-
+          `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
           '1️⃣ Faça o pagamento.\n' +
           '2️⃣ Envie o comprovante neste canal.\n' +
           '3️⃣ Aguarde a conferência da Staff.\n\n' +
-
           '⚠️ A aprovação é feita **manualmente** pela Staff.'
         );
 
@@ -619,12 +683,43 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
+      if (ticket.status === 'aprovado') {
+        return interaction.reply({
+          content: 'Este pagamento já foi aprovado.',
+          ephemeral: true
+        });
+      }
+
       ticket.status = 'aprovado';
       ticket.aprovadoPor = interaction.user.id;
 
-      return interaction.reply(
-        `✅ Pagamento de **R$ ${ticket.valor}** aprovado por ${interaction.user}.`
+      await interaction.reply(
+        `✅ Pagamento de **R$ ${ticket.valor}** aprovado por ${interaction.user}.\n\n` +
+        '📄 Gerando transcript e enviando para o comprador...'
       );
+
+      const ticketChannel =
+        interaction.guild.channels.cache.get(
+          ticket.ticketChannelId
+        );
+
+      if (!ticketChannel) {
+        return;
+      }
+
+      const link = await enviarTranscriptDM(
+        await client.users.fetch(ticket.userId),
+        ticketChannel,
+        ticket.valor
+      );
+
+      if (link) {
+        await interaction.channel.send(
+          `📄 Transcript enviado por DM para <@${ticket.userId}>.`
+        );
+      }
+
+      return;
     }
 
     // =========================
