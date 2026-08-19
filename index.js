@@ -1,4 +1,3 @@
-
 const {
   Client,
   GatewayIntentBits,
@@ -8,6 +7,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
@@ -15,11 +15,6 @@ const {
   ChannelType,
   EmbedBuilder
 } = require('discord.js');
-
-const discordTranscripts = require('discord-html-transcripts');
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -29,28 +24,8 @@ const TOKEN = process.env.TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
 const PIX_KEY = process.env.PIX_KEY;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || '';
-const PUBLIC_URL = process.env.PUBLIC_URL;
 
 const tickets = new Map();
-
-const app = express();
-const transcriptFolder = path.join(__dirname, 'transcripts');
-
-if (!fs.existsSync(transcriptFolder)) {
-  fs.mkdirSync(transcriptFolder, { recursive: true });
-}
-
-app.use('/transcripts', express.static(transcriptFolder));
-
-app.get('/', (req, res) => {
-  res.send('Medusa Store - Bot online.');
-});
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`Servidor web iniciado na porta ${PORT}`);
-});
 
 const commands = [
   new SlashCommandBuilder()
@@ -149,62 +124,74 @@ function paymentButtons() {
   );
 }
 
-async function gerarTranscript(ticketChannel) {
-  const attachment = await discordTranscripts.createTranscript(
-    ticketChannel,
-    {
-      limit: -1,
-      returnType: 'buffer',
-      filename: `transcript-${ticketChannel.id}.html`,
-      saveImages: false,
-      poweredBy: true
-    }
+/*
+ * RECOMPENSAS
+ *
+ * A Staff escolhe manualmente uma delas
+ * depois que o pagamento for aprovado.
+ */
+
+const recompensas = [
+  {
+    id: 'nada',
+    label: 'Nada',
+    description: 'Nenhuma recompensa'
+  },
+  {
+    id: 'cargo_personalizado',
+    label: 'Cargo Personalizado',
+    description: 'Recompensa de Cargo Personalizado'
+  },
+  {
+    id: 'cargo_especial_1',
+    label: 'Cargo Especial 1',
+    description: 'Primeiro Cargo Especial'
+  },
+  {
+    id: 'cargo_especial_2',
+    label: 'Cargo Especial 2',
+    description: 'Segundo Cargo Especial'
+  },
+  {
+    id: 'r50',
+    label: 'R$ 50',
+    description: 'Recompensa virtual de R$ 50'
+  },
+  {
+    id: 'r25',
+    label: 'R$ 25',
+    description: 'Recompensa virtual de R$ 25'
+  },
+  {
+    id: 'r10',
+    label: 'R$ 10',
+    description: 'Recompensa virtual de R$ 10'
+  },
+  {
+    id: 'r5',
+    label: 'R$ 5',
+    description: 'Recompensa virtual de R$ 5'
+  },
+  {
+    id: 'r2',
+    label: 'R$ 2',
+    description: 'Recompensa virtual de R$ 2'
+  }
+];
+
+function recompensaMenu() {
+  return new ActionRowBuilder().addComponents(
+    new StringSelectMenuBuilder()
+      .setCustomId('escolher_recompensa')
+      .setPlaceholder('🎁 Escolha a recompensa')
+      .addOptions(
+        recompensas.map(recompensa => ({
+          label: recompensa.label,
+          description: recompensa.description,
+          value: recompensa.id
+        }))
+      )
   );
-
-  const fileName = `transcript-${ticketChannel.id}.html`;
-  const filePath = path.join(transcriptFolder, fileName);
-
-  fs.writeFileSync(filePath, attachment);
-
-  if (!PUBLIC_URL) {
-    return null;
-  }
-
-  return `${PUBLIC_URL}/transcripts/${fileName}`;
-}
-
-async function enviarTranscriptDM(user, ticketChannel, valor) {
-  try {
-    const link = await gerarTranscript(ticketChannel);
-
-    if (!link) {
-      await user.send(
-        '✅ **Pagamento aprovado!**\n\n' +
-        `💰 Valor: **R$ ${valor}**\n\n` +
-        '📄 O transcript foi gerado, mas o link público ainda não foi configurado no Railway.'
-      );
-
-      return;
-    }
-
-    await user.send(
-      '✅ **Pagamento aprovado!**\n\n' +
-      `💰 Valor: **R$ ${valor}**\n\n` +
-      '📄 **Transcript da compra:**\n' +
-      link
-    );
-
-    return link;
-
-  } catch (error) {
-    console.error('Erro ao enviar transcript por DM:', error);
-
-    await user.send(
-      '✅ **Pagamento aprovado!**\n\n' +
-      `💰 Valor: **R$ ${valor}**\n\n` +
-      'Não consegui enviar o transcript por DM.'
-    ).catch(() => {});
-  }
 }
 
 client.once('clientReady', () => {
@@ -246,8 +233,8 @@ client.on('interactionCreate', async interaction => {
             '🎁 R$ 5,00 Pix\n' +
             '🎁 R$ 2,00 Pix\n' +
             '🎁 Cargo Personalizado\n' +
-            '🎁 Cargo Especial\n' +
-            '🎁 Cargo Especial\n' +
+            '🎁 Cargo Especial 1\n' +
+            '🎁 Cargo Especial 2\n' +
             '🎁 Nada\n\n' +
 
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -260,17 +247,16 @@ client.on('interactionCreate', async interaction => {
             '🛒 **COMO REALIZAR A COMPRA**\n\n' +
             '1️⃣ Escolha a quantidade de Caixas desejada.\n' +
             '2️⃣ Informe sua escolha neste ticket.\n' +
-            '3️⃣ A Staff enviará as instruções de pagamento.\n' +
-            '4️⃣ Envie o comprovante após realizar o pagamento.\n' +
-            '5️⃣ Aguarde a confirmação e a entrega das Caixas.\n\n' +
+            '3️⃣ Realize o pagamento.\n' +
+            '4️⃣ Envie o comprovante.\n' +
+            '5️⃣ Aguarde a aprovação da Staff.\n\n' +
 
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
             '⚠️ **IMPORTANTE**\n\n' +
             '• Confira a quantidade e o valor antes de comprar.\n' +
             '• Guarde o comprovante da compra.\n' +
-            '• Em caso de problemas, informe a Staff neste ticket.\n' +
-            '• Caso receba ban recentemente após a compra, a Medusa Store não se responsabiliza pela perda das Caixas.\n\n' +
+            '• Em caso de problemas, informe a Staff neste ticket.\n\n' +
 
             '🪼 **MEDUSA STORE**\n' +
             'Mais Caixas. Mais chances. Mais diversão. ⚡💜'
@@ -420,8 +406,7 @@ client.on('interactionCreate', async interaction => {
         .setDescription(
           `🎁 **Quantidade:** ${numero} Caixa(s)\n` +
           `💰 **Valor total:** R$ ${valorTotal}\n\n` +
-          'Confira os dados acima.\n' +
-          'Caso precise alterar a quantidade, clique em **Editar quantia**.\n\n' +
+          'Confira os dados acima.\n\n' +
           'Quando estiver tudo certo, clique em **Realizar pagamento**.'
         );
 
@@ -469,8 +454,7 @@ client.on('interactionCreate', async interaction => {
         .setPlaceholder('Ex: 5')
         .setValue(String(ticket.quantidade))
         .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(10);
+        .setRequired(true);
 
       modal.addComponents(
         new ActionRowBuilder().addComponents(quantidade)
@@ -480,7 +464,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // =========================
-    // SALVAR NOVA QUANTIDADE
+    // SALVAR QUANTIDADE
     // =========================
 
     if (
@@ -513,8 +497,7 @@ client.on('interactionCreate', async interaction => {
         numero < 1
       ) {
         return interaction.reply({
-          content:
-            'Digite uma quantidade válida. Ex: `5`',
+          content: 'Digite uma quantidade válida.',
           ephemeral: true
         });
       }
@@ -534,7 +517,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // =========================
-    // PAGAMENTO
+    // REALIZAR PAGAMENTO
     // =========================
 
     if (
@@ -614,8 +597,7 @@ client.on('interactionCreate', async interaction => {
           `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
           '1️⃣ Faça o pagamento.\n' +
           '2️⃣ Envie o comprovante neste canal.\n' +
-          '3️⃣ Aguarde a conferência da Staff.\n\n' +
-          '⚠️ A aprovação é feita **manualmente** pela Staff.'
+          '3️⃣ Aguarde a conferência da Staff.'
         );
 
       await paymentChannel.send({
@@ -685,7 +667,8 @@ client.on('interactionCreate', async interaction => {
 
       if (ticket.status === 'aprovado') {
         return interaction.reply({
-          content: 'Este pagamento já foi aprovado.',
+          content:
+            'Este pagamento já foi aprovado.',
           ephemeral: true
         });
       }
@@ -694,29 +677,95 @@ client.on('interactionCreate', async interaction => {
       ticket.aprovadoPor = interaction.user.id;
 
       await interaction.reply(
-        `✅ Pagamento de **R$ ${ticket.valor}** aprovado por ${interaction.user}.\n\n` +
-        '📄 Gerando transcript e enviando para o comprador...'
+        '✅ **Pagamento aprovado!**\n\n' +
+        'Agora escolha a recompensa que será enviada ao comprador:'
       );
 
-      const ticketChannel =
-        interaction.guild.channels.cache.get(
-          ticket.ticketChannelId
-        );
+      return interaction.channel.send({
+        components: [recompensaMenu()]
+      });
+    }
 
-      if (!ticketChannel) {
-        return;
+    // =========================
+    // ESCOLHER RECOMPENSA
+    // =========================
+
+    if (
+      interaction.isStringSelectMenu() &&
+      interaction.customId === 'escolher_recompensa'
+    ) {
+
+      if (!isStaff(interaction)) {
+        return interaction.reply({
+          content:
+            'Somente a Staff pode escolher a recompensa.',
+          ephemeral: true
+        });
       }
 
-      const link = await enviarTranscriptDM(
-        await client.users.fetch(ticket.userId),
-        ticketChannel,
-        ticket.valor
+      const ticket = [...tickets.values()].find(
+        t =>
+          t.paymentChannelId === interaction.channel.id
       );
 
-      if (link) {
-        await interaction.channel.send(
-          `📄 Transcript enviado por DM para <@${ticket.userId}>.`
+      if (!ticket) {
+        return interaction.reply({
+          content: 'Ticket não encontrado.',
+          ephemeral: true
+        });
+      }
+
+      const recompensaId =
+        interaction.values[0];
+
+      const recompensa =
+        recompensas.find(
+          r => r.id === recompensaId
         );
+
+      if (!recompensa) {
+        return interaction.reply({
+          content:
+            'Recompensa inválida.',
+          ephemeral: true
+        });
+      }
+
+      ticket.recompensa =
+        recompensa.label;
+
+      const comprador =
+        await client.users.fetch(
+          ticket.userId
+        );
+
+      try {
+
+        await comprador.send(
+          '🎁 **MEDUSA STORE**\n\n' +
+          '✅ Seu pagamento foi aprovado!\n\n' +
+          `🎁 **Recompensa:** ${recompensa.label}\n\n` +
+          'Obrigado pela compra! 🪼💜'
+        );
+
+        await interaction.update({
+          content:
+            `✅ Recompensa **${recompensa.label}** enviada por PV para ${comprador}.`,
+          components: []
+        });
+
+      } catch (error) {
+
+        console.error(
+          'Não foi possível enviar a DM:',
+          error
+        );
+
+        await interaction.update({
+          content:
+            `⚠️ A recompensa foi selecionada como **${recompensa.label}**, mas não consegui enviar a DM. As mensagens privadas do comprador podem estar fechadas.`,
+          components: []
+        });
       }
 
       return;
@@ -752,10 +801,9 @@ client.on('interactionCreate', async interaction => {
       }
 
       ticket.status = 'reprovado';
-      ticket.reprovadoPor = interaction.user.id;
 
       return interaction.reply(
-        `❌ Pagamento de **R$ ${ticket.valor}** reprovado por ${interaction.user}.`
+        `❌ Pagamento de **R$ ${ticket.valor}** reprovado.`
       );
     }
 
