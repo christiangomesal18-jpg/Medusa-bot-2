@@ -1,61 +1,56 @@
-const {
+  const {
   Client,
   GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
+  PermissionFlagsBits,
+  ChannelType,
+  EmbedBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle,
-  PermissionFlagsBits,
-  ChannelType,
-  EmbedBuilder
+  TextInputStyle
 } = require('discord.js');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 const TOKEN = process.env.TOKEN;
-const CLIENT_ID = process.env.CLIENT_ID;
 const PIX_KEY = process.env.PIX_KEY;
 const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID || '';
 
 const tickets = new Map();
 
-const commands = [
-  new SlashCommandBuilder()
-    .setName('ping')
-    .setDescription('Verifica se o bot está online.'),
+// ===============================
+// RECOMPENSAS
+// ===============================
 
-  new SlashCommandBuilder()
-    .setName('painel')
-    .setDescription('Envia o painel da Medusa Store.')
-].map(command => command.toJSON());
+const recompensas = [
+  { id: 'r50', nome: 'R$ 50,00' },
+  { id: 'r25', nome: 'R$ 25,00' },
+  { id: 'r10', nome: 'R$ 10,00' },
+  { id: 'r5', nome: 'R$ 5,00' },
+  { id: 'r2', nome: 'R$ 2,00' },
+  { id: 'cargo_personalizado', nome: 'Cargo Personalizado' },
+  { id: 'cargo_especial_1', nome: 'Cargo Especial 1' },
+  { id: 'cargo_especial_2', nome: 'Cargo Especial 2' },
+  { id: 'nada', nome: 'Nada' }
+];
 
-const rest = new REST({ version: '10' }).setToken(TOKEN);
-
-async function registerCommands() {
-  try {
-    await rest.put(
-      Routes.applicationCommands(CLIENT_ID),
-      { body: commands }
-    );
-
-    console.log('Comandos registrados!');
-  } catch (error) {
-    console.error('Erro ao registrar comandos:', error);
-  }
-}
+// ===============================
+// STAFF
+// ===============================
 
 function isStaff(interaction) {
+
   if (
-    interaction.memberPermissions &&
-    interaction.memberPermissions.has(
+    interaction.memberPermissions?.has(
       PermissionFlagsBits.ManageChannels
     )
   ) {
@@ -64,9 +59,7 @@ function isStaff(interaction) {
 
   if (
     STAFF_ROLE_ID &&
-    interaction.member &&
-    interaction.member.roles &&
-    interaction.member.roles.cache.has(STAFF_ROLE_ID)
+    interaction.member?.roles?.cache?.has(STAFF_ROLE_ID)
   ) {
     return true;
   }
@@ -74,13 +67,30 @@ function isStaff(interaction) {
   return false;
 }
 
-function ticketButtons() {
+// ===============================
+// PAINEL
+// ===============================
+
+function painelButtons() {
+
   return new ActionRowBuilder().addComponents(
+
     new ButtonBuilder()
-      .setCustomId('editar_valor')
-      .setLabel('Editar quantia')
-      .setEmoji('💰')
-      .setStyle(ButtonStyle.Primary),
+      .setCustomId('abrir_caixa')
+      .setLabel('Comprar Caixa')
+      .setEmoji('🎁')
+      .setStyle(ButtonStyle.Primary)
+
+  );
+}
+
+// ===============================
+// TICKET
+// ===============================
+
+function ticketButtons() {
+
+  return new ActionRowBuilder().addComponents(
 
     new ButtonBuilder()
       .setCustomId('realizar_pagamento')
@@ -90,14 +100,21 @@ function ticketButtons() {
 
     new ButtonBuilder()
       .setCustomId('fechar_ticket')
-      .setLabel('Fechar ticket')
+      .setLabel('Fechar')
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Danger)
+
   );
 }
 
-function paymentButtons() {
+// ===============================
+// CANAL DE PAGAMENTO
+// ===============================
+
+function pagamentoButtons() {
+
   return new ActionRowBuilder().addComponents(
+
     new ButtonBuilder()
       .setCustomId('copiar_pix')
       .setLabel('Copiar chave Pix')
@@ -105,354 +122,107 @@ function paymentButtons() {
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId('aprovar_pagamento')
-      .setLabel('Aprovar pagamento')
+      .setCustomId('aceitar_comprovante')
+      .setLabel('Aceitar comprovante')
       .setEmoji('✅')
       .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
-      .setCustomId('reprovar_pagamento')
-      .setLabel('Reprovar pagamento')
+      .setCustomId('rejeitar_comprovante')
+      .setLabel('Rejeitar comprovante')
       .setEmoji('❌')
       .setStyle(ButtonStyle.Danger),
 
     new ButtonBuilder()
       .setCustomId('fechar_ticket')
-      .setLabel('Fechar ticket')
+      .setLabel('Fechar')
       .setEmoji('🔒')
       .setStyle(ButtonStyle.Secondary)
+
   );
 }
 
-/*
- * RECOMPENSAS
- *
- * A Staff escolhe manualmente uma delas
- * depois que o pagamento for aprovado.
- */
+// ===============================
+// MENU DA STAFF
+// ===============================
 
-const recompensas = [
-  {
-    id: 'nada',
-    label: 'Nada',
-    description: 'Nenhuma recompensa'
-  },
-  {
-    id: 'cargo_personalizado',
-    label: 'Cargo Personalizado',
-    description: 'Recompensa de Cargo Personalizado'
-  },
-  {
-    id: 'cargo_especial_1',
-    label: 'Cargo Especial 1',
-    description: 'Primeiro Cargo Especial'
-  },
-  {
-    id: 'cargo_especial_2',
-    label: 'Cargo Especial 2',
-    description: 'Segundo Cargo Especial'
-  },
-  {
-    id: 'r50',
-    label: 'R$ 50',
-    description: 'Recompensa virtual de R$ 50'
-  },
-  {
-    id: 'r25',
-    label: 'R$ 25',
-    description: 'Recompensa virtual de R$ 25'
-  },
-  {
-    id: 'r10',
-    label: 'R$ 10',
-    description: 'Recompensa virtual de R$ 10'
-  },
-  {
-    id: 'r5',
-    label: 'R$ 5',
-    description: 'Recompensa virtual de R$ 5'
-  },
-  {
-    id: 'r2',
-    label: 'R$ 2',
-    description: 'Recompensa virtual de R$ 2'
-  }
-];
+function menuRecompensa() {
 
-function recompensaMenu() {
   return new ActionRowBuilder().addComponents(
+
     new StringSelectMenuBuilder()
-      .setCustomId('escolher_recompensa')
-      .setPlaceholder('🎁 Escolha a recompensa')
+      .setCustomId('staff_escolher_recompensa')
+      .setPlaceholder('🎲 Escolha a recompensa')
       .addOptions(
         recompensas.map(recompensa => ({
-          label: recompensa.label,
-          description: recompensa.description,
+          label: recompensa.nome,
           value: recompensa.id
         }))
       )
+
   );
 }
+
+// ===============================
+// BOT ONLINE
+// ===============================
 
 client.once('clientReady', () => {
   console.log(`BOT ONLINE: ${client.user.tag}`);
 });
 
+// ===============================
+// DETECTAR COMPROVANTE
+// ===============================
+
+client.on('messageCreate', async message => {
+
+  if (message.author.bot) return;
+
+  const ticket = [...tickets.values()].find(
+    t => t.paymentChannelId === message.channel.id
+  );
+
+  if (!ticket) return;
+
+  if (message.author.id !== ticket.userId) return;
+
+  if (ticket.status !== 'aguardando_comprovante') return;
+
+  ticket.comprovanteEnviado = true;
+
+  await message.channel.send(
+    '📸 **Comprovante recebido!**\n\n' +
+    'Aguarde a Staff conferir o pagamento.'
+  );
+
+});
+
+// ===============================
+// INTERAÇÕES
+// ===============================
+
 client.on('interactionCreate', async interaction => {
+
   try {
 
-    // =========================
-    // COMANDOS
-    // =========================
-
-    if (interaction.isChatInputCommand()) {
-
-      if (interaction.commandName === 'ping') {
-        return interaction.reply('Pong!');
-      }
-
-      if (interaction.commandName === 'painel') {
-
-        if (!isStaff(interaction)) {
-          return interaction.reply({
-            content:
-              'Você não tem permissão para usar este comando.',
-            ephemeral: true
-          });
-        }
-
-        const embed = new EmbedBuilder()
-          .setDescription(
-            '🎁 **CAIXAS — MEDUSA STORE 🪼**\n\n' +
-
-            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
-            '💎 **PRÊMIOS DAS CAIXAS**\n\n' +
-            '🎁 R$ 25,00 Pix\n' +
-            '🎁 R$ 10,00 Pix\n' +
-            '🎁 R$ 5,00 Pix\n' +
-            '🎁 R$ 2,00 Pix\n' +
-            '🎁 Cargo Personalizado\n' +
-            '🎁 Cargo Especial 1\n' +
-            '🎁 Cargo Especial 2\n' +
-            '🎁 Nada\n\n' +
-
-            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
-            '💸 **VALOR DA CAIXA**\n\n' +
-            '🎁 1 Caixa — R$ 0,50\n\n' +
-
-            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
-            '🛒 **COMO REALIZAR A COMPRA**\n\n' +
-            '1️⃣ Escolha a quantidade de Caixas desejada.\n' +
-            '2️⃣ Informe sua escolha neste ticket.\n' +
-            '3️⃣ Realize o pagamento.\n' +
-            '4️⃣ Envie o comprovante.\n' +
-            '5️⃣ Aguarde a aprovação da Staff.\n\n' +
-
-            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
-            '⚠️ **IMPORTANTE**\n\n' +
-            '• Confira a quantidade e o valor antes de comprar.\n' +
-            '• Guarde o comprovante da compra.\n' +
-            '• Em caso de problemas, informe a Staff neste ticket.\n\n' +
-
-            '🪼 **MEDUSA STORE**\n' +
-            'Mais Caixas. Mais chances. Mais diversão. ⚡💜'
-          );
-
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('abrir_ticket')
-            .setLabel('Abrir Ticket')
-            .setEmoji('🎫')
-            .setStyle(ButtonStyle.Primary)
-        );
-
-        return interaction.reply({
-          embeds: [embed],
-          components: [row]
-        });
-      }
-
-      return;
-    }
-
-    // =========================
-    // ABRIR TICKET
-    // =========================
+    // ===============================
+    // ABRIR CAIXA
+    // ===============================
 
     if (
       interaction.isButton() &&
-      interaction.customId === 'abrir_ticket'
+      interaction.customId === 'abrir_caixa'
     ) {
 
-      const existing = interaction.guild.channels.cache.find(
-        channel =>
-          channel.name ===
-            `ticket-${interaction.user.username.toLowerCase()}` &&
-          channel.type === ChannelType.GuildText
-      );
-
-      if (existing) {
-        return interaction.reply({
-          content: `Você já possui um ticket: ${existing}`,
-          ephemeral: true
-        });
-      }
-
       const modal = new ModalBuilder()
-        .setCustomId('valor_inicial')
-        .setTitle('Quantidade de Caixas');
+        .setCustomId('quantidade_caixas')
+        .setTitle('🎁 Comprar Caixas');
 
       const quantidade = new TextInputBuilder()
         .setCustomId('quantidade')
-        .setLabel('Quantidade de Caixas')
+        .setLabel('Quantidade de caixas')
         .setPlaceholder('Ex: 1')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
-        .setMaxLength(10);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(quantidade)
-      );
-
-      return interaction.showModal(modal);
-    }
-
-    // =========================
-    // CRIAR TICKET
-    // =========================
-
-    if (
-      interaction.isModalSubmit() &&
-      interaction.customId === 'valor_inicial'
-    ) {
-
-      const quantidade =
-        interaction.fields.getTextInputValue('quantidade');
-
-      const numero = Number(
-        quantidade.replace(',', '.')
-      );
-
-      if (
-        !Number.isInteger(numero) ||
-        numero < 1
-      ) {
-        return interaction.reply({
-          content:
-            'Digite uma quantidade válida. Ex: `1`',
-          ephemeral: true
-        });
-      }
-
-      const valorTotal = (numero * 0.50)
-        .toFixed(2)
-        .replace('.', ',');
-
-      const category = interaction.guild.channels.cache.find(
-        channel =>
-          channel.type === ChannelType.GuildCategory &&
-          channel.name.toLowerCase() === 'tickets'
-      );
-
-      const channel =
-        await interaction.guild.channels.create({
-          name:
-            `ticket-${interaction.user.username.toLowerCase()}`,
-          type: ChannelType.GuildText,
-          parent: category ? category.id : undefined,
-
-          permissionOverwrites: [
-            {
-              id: interaction.guild.roles.everyone.id,
-              deny: [PermissionFlagsBits.ViewChannel]
-            },
-            {
-              id: interaction.user.id,
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory
-              ]
-            }
-          ]
-        });
-
-      if (STAFF_ROLE_ID) {
-        await channel.permissionOverwrites.create(
-          STAFF_ROLE_ID,
-          {
-            ViewChannel: true,
-            SendMessages: true,
-            ReadMessageHistory: true
-          }
-        );
-      }
-
-      tickets.set(interaction.user.id, {
-        userId: interaction.user.id,
-        quantidade: numero,
-        valor: valorTotal,
-        ticketChannelId: channel.id,
-        paymentChannelId: null,
-        status: 'aguardando_pagamento'
-      });
-
-      const embed = new EmbedBuilder()
-        .setTitle('🎁 Compra de Caixas')
-        .setDescription(
-          `🎁 **Quantidade:** ${numero} Caixa(s)\n` +
-          `💰 **Valor total:** R$ ${valorTotal}\n\n` +
-          'Confira os dados acima.\n\n' +
-          'Quando estiver tudo certo, clique em **Realizar pagamento**.'
-        );
-
-      await channel.send({
-        content: `${interaction.user}`,
-        embeds: [embed],
-        components: [ticketButtons()]
-      });
-
-      return interaction.reply({
-        content: `Ticket criado: ${channel}`,
-        ephemeral: true
-      });
-    }
-
-    // =========================
-    // EDITAR QUANTIDADE
-    // =========================
-
-    if (
-      interaction.isButton() &&
-      interaction.customId === 'editar_valor'
-    ) {
-
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.ticketChannelId === interaction.channel.id &&
-          t.userId === interaction.user.id
-      );
-
-      if (!ticket) {
-        return interaction.reply({
-          content: 'Ticket não encontrado.',
-          ephemeral: true
-        });
-      }
-
-      const modal = new ModalBuilder()
-        .setCustomId('editar_valor_modal')
-        .setTitle('Editar quantidade');
-
-      const quantidade = new TextInputBuilder()
-        .setCustomId('quantidade')
-        .setLabel('Nova quantidade')
-        .setPlaceholder('Ex: 5')
-        .setValue(String(ticket.quantidade))
         .setStyle(TextInputStyle.Short)
         .setRequired(true);
 
@@ -463,38 +233,23 @@ client.on('interactionCreate', async interaction => {
       return interaction.showModal(modal);
     }
 
-    // =========================
-    // SALVAR QUANTIDADE
-    // =========================
+    // ===============================
+    // CRIAR TICKET
+    // ===============================
 
     if (
       interaction.isModalSubmit() &&
-      interaction.customId === 'editar_valor_modal'
+      interaction.customId === 'quantidade_caixas'
     ) {
 
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.ticketChannelId === interaction.channel.id &&
-          t.userId === interaction.user.id
-      );
-
-      if (!ticket) {
-        return interaction.reply({
-          content: 'Ticket não encontrado.',
-          ephemeral: true
-        });
-      }
-
-      const quantidade =
+      const quantidadeTexto =
         interaction.fields.getTextInputValue('quantidade');
 
-      const numero = Number(
-        quantidade.replace(',', '.')
-      );
+      const quantidade = Number(quantidadeTexto);
 
       if (
-        !Number.isInteger(numero) ||
-        numero < 1
+        !Number.isInteger(quantidade) ||
+        quantidade < 1
       ) {
         return interaction.reply({
           content: 'Digite uma quantidade válida.',
@@ -502,68 +257,25 @@ client.on('interactionCreate', async interaction => {
         });
       }
 
-      ticket.quantidade = numero;
+      const valor =
+        (quantidade * 0.50)
+          .toFixed(2)
+          .replace('.', ',');
 
-      ticket.valor = (numero * 0.50)
-        .toFixed(2)
-        .replace('.', ',');
-
-      return interaction.reply({
-        content:
-          `Quantidade alterada para **${numero} Caixa(s)**.\n` +
-          `Novo valor: **R$ ${ticket.valor}**.`,
-        ephemeral: true
-      });
-    }
-
-    // =========================
-    // REALIZAR PAGAMENTO
-    // =========================
-
-    if (
-      interaction.isButton() &&
-      interaction.customId === 'realizar_pagamento'
-    ) {
-
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.ticketChannelId === interaction.channel.id &&
-          t.userId === interaction.user.id
-      );
-
-      if (!ticket) {
-        return interaction.reply({
-          content: 'Ticket não encontrado.',
-          ephemeral: true
-        });
-      }
-
-      if (!PIX_KEY) {
-        return interaction.reply({
-          content:
-            'A chave Pix não está configurada no Railway.',
-          ephemeral: true
-        });
-      }
-
-      const category = interaction.guild.channels.cache.find(
-        channel =>
-          channel.type === ChannelType.GuildCategory &&
-          channel.name.toLowerCase() === 'pagamentos'
-      );
-
-      const paymentChannel =
+      const canal =
         await interaction.guild.channels.create({
-          name:
-            `pagamento-${interaction.user.username.toLowerCase()}`,
+
+          name: `ticket-${interaction.user.id}`,
+
           type: ChannelType.GuildText,
-          parent: category ? category.id : undefined,
 
           permissionOverwrites: [
+
             {
               id: interaction.guild.roles.everyone.id,
               deny: [PermissionFlagsBits.ViewChannel]
             },
+
             {
               id: interaction.user.id,
               allow: [
@@ -572,11 +284,14 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.ReadMessageHistory
               ]
             }
+
           ]
+
         });
 
       if (STAFF_ROLE_ID) {
-        await paymentChannel.permissionOverwrites.create(
+
+        await canal.permissionOverwrites.create(
           STAFF_ROLE_ID,
           {
             ViewChannel: true,
@@ -584,309 +299,585 @@ client.on('interactionCreate', async interaction => {
             ReadMessageHistory: true
           }
         );
+
       }
 
-      ticket.paymentChannelId = paymentChannel.id;
-      ticket.status = 'aguardando_comprovante';
+      tickets.set(interaction.user.id, {
 
-      const embed = new EmbedBuilder()
-        .setTitle('💳 REALIZAR PAGAMENTO')
-        .setDescription(
-          `🎁 **Caixas:** ${ticket.quantidade}\n` +
-          `💰 **Valor:** R$ ${ticket.valor}\n\n` +
-          `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
-          '1️⃣ Faça o pagamento.\n' +
-          '2️⃣ Envie o comprovante neste canal.\n' +
-          '3️⃣ Aguarde a conferência da Staff.'
-        );
+        userId: interaction.user.id,
 
-      await paymentChannel.send({
+        quantidade,
+
+        valor,
+
+        ticketChannelId: canal.id,
+
+        paymentChannelId: null,
+
+        status: 'aguardando_pagamento',
+
+        comprovanteEnviado: false
+
+      });
+
+      const embed =
+        new EmbedBuilder()
+
+          .setTitle('🎁 CAIXA — MEDUSA STORE 🪼')
+
+          .setDescription(
+
+            `🎁 **Quantidade:** ${quantidade}\n` +
+            `💰 **Valor:** R$ ${valor}\n\n` +
+
+            '📦 Cada caixa custa **R$ 0,50**.\n\n' +
+
+            'Clique abaixo para realizar o pagamento.'
+
+          );
+
+      await canal.send({
+
         content: `${interaction.user}`,
+
         embeds: [embed],
-        components: [paymentButtons()]
+
+        components: [ticketButtons()]
+
       });
 
       return interaction.reply({
-        content:
-          `Canal de pagamento criado: ${paymentChannel}`,
+
+        content: `✅ Ticket criado: ${canal}`,
+
         ephemeral: true
+
       });
     }
 
-    // =========================
+    // ===============================
+    // REALIZAR PAGAMENTO
+    // ===============================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'realizar_pagamento'
+    ) {
+
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.ticketChannelId === interaction.channel.id &&
+            t.userId === interaction.user.id
+
+        );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content: 'Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      if (!PIX_KEY) {
+
+        return interaction.reply({
+
+          content: 'A chave Pix não está configurada.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      // =================================
+      // CRIA O CANAL SECUNDÁRIO
+      // =================================
+
+      const pagamento =
+        await interaction.guild.channels.create({
+
+          name:
+            `pagamento-${interaction.user.id}`,
+
+          type:
+            ChannelType.GuildText,
+
+          permissionOverwrites: [
+
+            {
+              id:
+                interaction.guild.roles.everyone.id,
+
+              deny: [
+                PermissionFlagsBits.ViewChannel
+              ]
+
+            },
+
+            {
+              id:
+                interaction.user.id,
+
+              allow: [
+
+                PermissionFlagsBits.ViewChannel,
+
+                PermissionFlagsBits.SendMessages,
+
+                PermissionFlagsBits.ReadMessageHistory,
+
+                PermissionFlagsBits.AttachFiles
+
+              ]
+
+            }
+
+          ]
+
+        });
+
+      if (STAFF_ROLE_ID) {
+
+        await pagamento.permissionOverwrites.create(
+
+          STAFF_ROLE_ID,
+
+          {
+
+            ViewChannel: true,
+
+            SendMessages: true,
+
+            ReadMessageHistory: true
+
+          }
+
+        );
+
+      }
+
+      ticket.paymentChannelId = pagamento.id;
+
+      ticket.status = 'aguardando_comprovante';
+
+      ticket.comprovanteEnviado = false;
+
+      const embed =
+        new EmbedBuilder()
+
+          .setTitle('💳 PAGAMENTO — MEDUSA STORE')
+
+          .setDescription(
+
+            `🎁 **Caixas:** ${ticket.quantidade}\n` +
+
+            `💰 **Valor:** R$ ${ticket.valor}\n\n` +
+
+            `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
+
+            '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+
+            '📸 **Envie o comprovante neste canal.**\n\n' +
+
+            '⚠️ É obrigatório enviar o comprovante antes da Staff aceitar o pagamento.\n\n' +
+
+            'Após o envio, aguarde a Staff.'
+
+          );
+
+      await pagamento.send({
+
+        content: `${interaction.user}`,
+
+        embeds: [embed],
+
+        components: [pagamentoButtons()]
+
+      });
+
+      return interaction.reply({
+
+        content:
+          `💳 Canal de pagamento criado: ${pagamento}`,
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ===============================
     // COPIAR PIX
-    // =========================
+    // ===============================
 
     if (
       interaction.isButton() &&
       interaction.customId === 'copiar_pix'
     ) {
 
-      if (!PIX_KEY) {
-        return interaction.reply({
-          content: 'Chave Pix não configurada.',
-          ephemeral: true
-        });
-      }
-
       return interaction.reply({
+
         content:
           `📋 **Chave Pix:**\n\`${PIX_KEY}\``,
+
         ephemeral: true
+
       });
+
     }
 
-    // =========================
-    // APROVAR PAGAMENTO
-    // =========================
+    // ===============================
+    // ACEITAR COMPROVANTE
+    // ===============================
 
     if (
       interaction.isButton() &&
-      interaction.customId === 'aprovar_pagamento'
+      interaction.customId === 'aceitar_comprovante'
     ) {
 
       if (!isStaff(interaction)) {
+
         return interaction.reply({
+
           content:
-            'Somente a Staff pode aprovar o pagamento.',
+            'Somente a Staff pode aceitar o comprovante.',
+
           ephemeral: true
+
         });
+
       }
 
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.paymentChannelId === interaction.channel.id
-      );
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
 
       if (!ticket) {
-        return interaction.reply({
-          content: 'Ticket não encontrado.',
-          ephemeral: true
-        });
-      }
 
-      if (ticket.status === 'aprovado') {
         return interaction.reply({
+
           content:
-            'Este pagamento já foi aprovado.',
+            'Ticket não encontrado.',
+
           ephemeral: true
+
         });
+
       }
 
-      ticket.status = 'aprovado';
-      ticket.aprovadoPor = interaction.user.id;
+      // =================================
+      // OBRIGA A ENVIAR COMPROVANTE
+      // =================================
 
-      await interaction.reply(
-        '✅ **Pagamento aprovado!**\n\n' +
-        'Agora escolha a recompensa que será enviada ao comprador:'
-      );
+      if (!ticket.comprovanteEnviado) {
 
-      return interaction.channel.send({
-        components: [recompensaMenu()]
+        return interaction.reply({
+
+          content:
+            '⚠️ O comprador ainda não enviou o comprovante.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      ticket.status =
+        'pagamento_aceito';
+
+      // SOMENTE A STAFF VÊ
+
+      return interaction.reply({
+
+        content:
+
+          '✅ **Comprovante aceito!**\n\n' +
+
+          '🎲 Agora escolha a recompensa que o comprador receberá:',
+
+        components: [
+          menuRecompensa()
+        ],
+
+        ephemeral: true
+
       });
+
     }
 
-    // =========================
+    // ===============================
+    // REJEITAR COMPROVANTE
+    // ===============================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'rejeitar_comprovante'
+    ) {
+
+      if (!isStaff(interaction)) {
+
+        return interaction.reply({
+
+          content:
+            'Somente a Staff pode rejeitar.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content:
+            'Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      ticket.comprovanteEnviado = false;
+
+      return interaction.reply({
+
+        content:
+          '❌ Comprovante rejeitado. O comprador deve enviar um novo comprovante.',
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ===============================
     // ESCOLHER RECOMPENSA
-    // =========================
+    // ===============================
 
     if (
       interaction.isStringSelectMenu() &&
-      interaction.customId === 'escolher_recompensa'
+      interaction.customId ===
+        'staff_escolher_recompensa'
     ) {
 
       if (!isStaff(interaction)) {
+
         return interaction.reply({
+
           content:
-            'Somente a Staff pode escolher a recompensa.',
+            'Somente a Staff pode escolher.',
+
           ephemeral: true
+
         });
+
       }
 
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.paymentChannelId === interaction.channel.id
-      );
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
 
       if (!ticket) {
+
         return interaction.reply({
-          content: 'Ticket não encontrado.',
+
+          content:
+            'Ticket não encontrado.',
+
           ephemeral: true
+
         });
+
       }
 
-      const recompensaId =
+      const id =
         interaction.values[0];
 
       const recompensa =
         recompensas.find(
-          r => r.id === recompensaId
+          r => r.id === id
         );
 
       if (!recompensa) {
+
         return interaction.reply({
+
           content:
             'Recompensa inválida.',
+
           ephemeral: true
+
         });
+
       }
-
-      ticket.recompensa =
-        recompensa.label;
-
-      const comprador =
-        await client.users.fetch(
-          ticket.userId
-        );
 
       try {
 
+        const comprador =
+          await client.users.fetch(
+            ticket.userId
+          );
+
         await comprador.send(
-          '🎁 **MEDUSA STORE**\n\n' +
-          '✅ Seu pagamento foi aprovado!\n\n' +
-          `🎁 **Recompensa:** ${recompensa.label}\n\n` +
-          'Obrigado pela compra! 🪼💜'
+
+          '🎁 **MEDUSA STORE** 🪼\n\n' +
+
+          '✨ Sua caixa foi aberta!\n\n' +
+
+          '🎉 **SURPRESA!**\n\n' +
+
+          `🎁 Você ganhou: **${recompensa.nome}**\n\n` +
+
+          'Obrigado pela compra! 💜'
+
         );
 
-        await interaction.update({
+        ticket.recompensa =
+          recompensa.nome;
+
+        ticket.status =
+          'finalizado';
+
+        return interaction.update({
+
           content:
-            `✅ Recompensa **${recompensa.label}** enviada por PV para ${comprador}.`,
+
+            `✅ Recompensa enviada no PV do comprador.\n\n` +
+
+            `🎁 Recompensa: **${recompensa.nome}**`,
+
           components: []
+
         });
 
-      } catch (error) {
+      } catch {
 
-        console.error(
-          'Não foi possível enviar a DM:',
-          error
-        );
+        return interaction.update({
 
-        await interaction.update({
           content:
-            `⚠️ A recompensa foi selecionada como **${recompensa.label}**, mas não consegui enviar a DM. As mensagens privadas do comprador podem estar fechadas.`,
+            '⚠️ Não consegui enviar o PV do comprador.',
+
           components: []
+
         });
+
       }
 
-      return;
     }
 
-    // =========================
-    // REPROVAR PAGAMENTO
-    // =========================
-
-    if (
-      interaction.isButton() &&
-      interaction.customId === 'reprovar_pagamento'
-    ) {
-
-      if (!isStaff(interaction)) {
-        return interaction.reply({
-          content:
-            'Somente a Staff pode reprovar o pagamento.',
-          ephemeral: true
-        });
-      }
-
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.paymentChannelId === interaction.channel.id
-      );
-
-      if (!ticket) {
-        return interaction.reply({
-          content: 'Ticket não encontrado.',
-          ephemeral: true
-        });
-      }
-
-      ticket.status = 'reprovado';
-
-      return interaction.reply(
-        `❌ Pagamento de **R$ ${ticket.valor}** reprovado.`
-      );
-    }
-
-    // =========================
-    // FECHAR TICKET
-    // =========================
+    // ===============================
+    // FECHAR
+    // ===============================
 
     if (
       interaction.isButton() &&
       interaction.customId === 'fechar_ticket'
     ) {
 
-      const ticket = [...tickets.values()].find(
-        t =>
-          t.ticketChannelId === interaction.channel.id ||
-          t.paymentChannelId === interaction.channel.id
-      );
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.ticketChannelId === interaction.channel.id ||
+            t.paymentChannelId === interaction.channel.id
+
+        );
 
       if (!ticket) {
+
         return interaction.reply({
-          content: 'Ticket não encontrado.',
+
+          content:
+            'Ticket não encontrado.',
+
           ephemeral: true
+
         });
+
       }
 
       if (
         interaction.user.id !== ticket.userId &&
         !isStaff(interaction)
       ) {
+
         return interaction.reply({
+
           content:
-            'Você não pode fechar este ticket.',
+            'Você não pode fechar este canal.',
+
           ephemeral: true
+
         });
+
       }
 
       await interaction.reply(
-        '🔒 Este ticket será fechado em 5 segundos...'
+        '🔒 Fechando...'
       );
 
-      setTimeout(async () => {
+      setTimeout(() => {
 
-        const ticketChannel =
-          interaction.guild.channels.cache.get(
-            ticket.ticketChannelId
-          );
+        interaction.channel
+          .delete()
+          .catch(() => {});
 
-        const paymentChannel =
-          ticket.paymentChannelId
-            ? interaction.guild.channels.cache.get(
-                ticket.paymentChannelId
-              )
-            : null;
+      }, 1500);
 
-        if (ticketChannel) {
-          await ticketChannel.delete().catch(() => {});
-        }
-
-        if (paymentChannel) {
-          await paymentChannel.delete().catch(() => {});
-        }
-
-        tickets.delete(ticket.userId);
-
-      }, 5000);
-
-      return;
     }
 
   } catch (error) {
 
     console.error('ERRO:', error);
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content:
-          'Ocorreu um erro ao executar esta ação.',
-        ephemeral: true
-      }).catch(() => {});
-    }
-  }
-});
+    if (
+      !interaction.replied &&
+      !interaction.deferred
+    ) {
 
-registerCommands();
+      await interaction.reply({
+
+        content:
+          '❌ Não foi possível realizar esta ação.',
+
+        ephemeral: true
+
+      }).catch(() => {});
+
+    }
+
+  }
+
+});
 
 client.login(TOKEN);
