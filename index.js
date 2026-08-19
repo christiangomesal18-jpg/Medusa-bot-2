@@ -26,7 +26,7 @@ async function registerCommand() {
   }
 }
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`Bot online como ${client.user.tag}`);
 });
 
