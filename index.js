@@ -1,4 +1,3 @@
-
 const {
   Client,
   GatewayIntentBits,
@@ -17,7 +16,11 @@ const {
 } = require('discord.js');
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
 const TOKEN = process.env.TOKEN;
@@ -26,20 +29,12 @@ const PIX_KEY = process.env.PIX_KEY;
 
 const tickets = new Map();
 
-// ========================================
-// COMANDO
-// ========================================
-
 const commands = [
   new SlashCommandBuilder()
     .setName('painel')
     .setDescription('Envia o painel das caixas.')
     .toJSON()
 ];
-
-// ========================================
-// BOT ONLINE
-// ========================================
 
 client.once('clientReady', async () => {
 
@@ -68,9 +63,13 @@ client.once('clientReady', async () => {
 
 });
 
-// ========================================
-// INTERAÇÕES
-// ========================================
+function isStaff(interaction) {
+
+  return interaction.memberPermissions?.has(
+    PermissionFlagsBits.ManageChannels
+  );
+
+}
 
 client.on('interactionCreate', async interaction => {
 
@@ -89,7 +88,6 @@ client.on('interactionCreate', async interaction => {
         .setTitle('🎁 CAIXAS — MEDUSA STORE 🪼')
         .setDescription(
           '**💎 PRÊMIOS DAS CAIXAS**\n\n' +
-
           '🎁 R$ 50,00\n' +
           '🎁 R$ 25,00\n' +
           '🎁 R$ 10,00\n' +
@@ -99,15 +97,10 @@ client.on('interactionCreate', async interaction => {
           '🎁 Cargo Especial 1\n' +
           '🎁 Cargo Especial 2\n' +
           '🎁 Nada\n\n' +
-
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
           '**💸 VALOR DA CAIXA**\n\n' +
-
           '🎁 1 Caixa — **R$ 0,50**\n\n' +
-
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
           '🎁 Clique no botão abaixo para comprar.'
         );
 
@@ -222,14 +215,11 @@ client.on('interactionCreate', async interaction => {
       tickets.set(interaction.user.id, {
 
         userId: interaction.user.id,
-
         quantidade: quantidade,
-
         valor: valor,
-
         ticketChannelId: canal.id,
-
-        paymentChannelId: null
+        paymentChannelId: null,
+        comprovante: false
 
       });
 
@@ -238,9 +228,7 @@ client.on('interactionCreate', async interaction => {
         .setDescription(
           `📦 Quantidade: **${quantidade}**\n` +
           `💰 Valor total: **R$ ${valor}**\n\n` +
-
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-
           '💳 Quando estiver pronto, clique em **Realizar pagamento**.'
         );
 
@@ -297,12 +285,8 @@ client.on('interactionCreate', async interaction => {
       if (!ticket) {
 
         return interaction.reply({
-
-          content:
-            '❌ Ticket não encontrado.',
-
+          content: '❌ Ticket não encontrado.',
           ephemeral: true
-
         });
 
       }
@@ -310,12 +294,9 @@ client.on('interactionCreate', async interaction => {
       if (!PIX_KEY) {
 
         return interaction.reply({
-
           content:
-            '❌ A variável PIX_KEY não está configurada no Railway.',
-
+            '❌ A variável PIX_KEY não está configurada.',
           ephemeral: true
-
         });
 
       }
@@ -335,9 +316,8 @@ client.on('interactionCreate', async interaction => {
               id:
                 interaction.guild.roles.everyone.id,
 
-              deny: [
-                PermissionFlagsBits.ViewChannel
-              ]
+              deny:
+                [PermissionFlagsBits.ViewChannel]
 
             },
 
@@ -348,11 +328,8 @@ client.on('interactionCreate', async interaction => {
               allow: [
 
                 PermissionFlagsBits.ViewChannel,
-
                 PermissionFlagsBits.SendMessages,
-
                 PermissionFlagsBits.ReadMessageHistory,
-
                 PermissionFlagsBits.AttachFiles
 
               ]
@@ -376,7 +353,6 @@ client.on('interactionCreate', async interaction => {
           .setDescription(
 
             `🎁 Caixas: **${ticket.quantidade}**\n` +
-
             `💰 Valor: **R$ ${ticket.valor}**\n\n` +
 
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -384,7 +360,9 @@ client.on('interactionCreate', async interaction => {
             `🔑 **Chave Pix:**\n\`${PIX_KEY}\`\n\n` +
 
             '📸 Após realizar o pagamento, ' +
-            'envie o comprovante neste canal.'
+            '**envie o comprovante neste canal.**\n\n' +
+
+            '⚠️ O comprovante é obrigatório.'
 
           );
 
@@ -398,10 +376,22 @@ client.on('interactionCreate', async interaction => {
             .setStyle(ButtonStyle.Primary),
 
           new ButtonBuilder()
+            .setCustomId('aceitar_comprovante')
+            .setLabel('Aceitar comprovante')
+            .setEmoji('✅')
+            .setStyle(ButtonStyle.Success),
+
+          new ButtonBuilder()
+            .setCustomId('rejeitar_comprovante')
+            .setLabel('Rejeitar comprovante')
+            .setEmoji('❌')
+            .setStyle(ButtonStyle.Danger),
+
+          new ButtonBuilder()
             .setCustomId('fechar_pagamento')
             .setLabel('Fechar')
             .setEmoji('🔒')
-            .setStyle(ButtonStyle.Danger)
+            .setStyle(ButtonStyle.Secondary)
 
         );
 
@@ -442,6 +432,137 @@ client.on('interactionCreate', async interaction => {
 
         content:
           `📋 **Chave Pix:**\n\`${PIX_KEY}\``,
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
+    // ACEITAR COMPROVANTE
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'aceitar_comprovante'
+    ) {
+
+      if (!isStaff(interaction)) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Apenas a Staff pode aceitar comprovantes.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      if (!ticket.comprovante) {
+
+        return interaction.reply({
+
+          content:
+            '⚠️ O comprador ainda não enviou um comprovante.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      ticket.comprovanteAceito =
+        true;
+
+      return interaction.reply({
+
+        content:
+          '✅ **Comprovante aceito!**\n\n' +
+          'O pagamento foi confirmado.',
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
+    // REJEITAR COMPROVANTE
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'rejeitar_comprovante'
+    ) {
+
+      if (!isStaff(interaction)) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Apenas a Staff pode rejeitar comprovantes.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      ticket.comprovante =
+        false;
+
+      return interaction.reply({
+
+        content:
+          '❌ **Comprovante rejeitado.**\n\n' +
+          'Peça ao comprador para enviar um novo comprovante.',
 
         ephemeral: true
 
@@ -496,6 +617,56 @@ client.on('interactionCreate', async interaction => {
     }
 
   }
+
+});
+
+// ========================================
+// RECEBER COMPROVANTE
+// ========================================
+
+client.on('messageCreate', async message => {
+
+  if (message.author.bot) return;
+
+  const ticket =
+    [...tickets.values()].find(
+
+      t =>
+        t.paymentChannelId ===
+        message.channel.id
+
+    );
+
+  if (!ticket) return;
+
+  if (
+    message.author.id !==
+    ticket.userId
+  ) {
+
+    return;
+
+  }
+
+  if (
+    message.attachments.size === 0
+  ) {
+
+    await message.reply(
+      '📸 Envie o comprovante como imagem ou arquivo.'
+    );
+
+    return;
+
+  }
+
+  ticket.comprovante =
+    true;
+
+  await message.channel.send(
+    '📸 **Comprovante recebido!**\n\n' +
+    'Aguarde a Staff analisar.'
+  );
 
 });
 
