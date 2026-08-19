@@ -1,3 +1,4 @@
+
 const {
   Client,
   GatewayIntentBits,
@@ -74,6 +75,10 @@ function isStaff(interaction) {
   return false;
 }
 
+// =========================
+// BOTÕES DO TICKET
+// =========================
+
 function ticketButtons() {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -95,6 +100,10 @@ function ticketButtons() {
       .setStyle(ButtonStyle.Danger)
   );
 }
+
+// =========================
+// BOTÕES DO PAGAMENTO
+// =========================
 
 function paymentButtons() {
   return new ActionRowBuilder().addComponents(
@@ -124,12 +133,9 @@ function paymentButtons() {
   );
 }
 
-/*
- * RECOMPENSAS
- *
- * A Staff escolhe manualmente uma delas
- * depois que o pagamento for aprovado.
- */
+// =========================
+// RECOMPENSAS
+// =========================
 
 const recompensas = [
   {
@@ -140,7 +146,7 @@ const recompensas = [
   {
     id: 'cargo_personalizado',
     label: 'Cargo Personalizado',
-    description: 'Recompensa de Cargo Personalizado'
+    description: 'Cargo Personalizado'
   },
   {
     id: 'cargo_especial_1',
@@ -155,27 +161,27 @@ const recompensas = [
   {
     id: 'r50',
     label: 'R$ 50',
-    description: 'Recompensa virtual de R$ 50'
+    description: 'Recompensa de R$ 50'
   },
   {
     id: 'r25',
     label: 'R$ 25',
-    description: 'Recompensa virtual de R$ 25'
+    description: 'Recompensa de R$ 25'
   },
   {
     id: 'r10',
     label: 'R$ 10',
-    description: 'Recompensa virtual de R$ 10'
+    description: 'Recompensa de R$ 10'
   },
   {
     id: 'r5',
     label: 'R$ 5',
-    description: 'Recompensa virtual de R$ 5'
+    description: 'Recompensa de R$ 5'
   },
   {
     id: 'r2',
     label: 'R$ 2',
-    description: 'Recompensa virtual de R$ 2'
+    description: 'Recompensa de R$ 2'
   }
 ];
 
@@ -194,9 +200,17 @@ function recompensaMenu() {
   );
 }
 
+// =========================
+// BOT ONLINE
+// =========================
+
 client.once('clientReady', () => {
   console.log(`BOT ONLINE: ${client.user.tag}`);
 });
+
+// =========================
+// INTERAÇÕES
+// =========================
 
 client.on('interactionCreate', async interaction => {
   try {
@@ -228,10 +242,10 @@ client.on('interactionCreate', async interaction => {
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
             '💎 **PRÊMIOS DAS CAIXAS**\n\n' +
-            '🎁 R$ 25,00 Pix\n' +
-            '🎁 R$ 10,00 Pix\n' +
-            '🎁 R$ 5,00 Pix\n' +
-            '🎁 R$ 2,00 Pix\n' +
+            '🎁 R$ 25,00\n' +
+            '🎁 R$ 10,00\n' +
+            '🎁 R$ 5,00\n' +
+            '🎁 R$ 2,00\n' +
             '🎁 Cargo Personalizado\n' +
             '🎁 Cargo Especial 1\n' +
             '🎁 Cargo Especial 2\n' +
@@ -245,8 +259,8 @@ client.on('interactionCreate', async interaction => {
             '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
             '🛒 **COMO REALIZAR A COMPRA**\n\n' +
-            '1️⃣ Escolha a quantidade de Caixas desejada.\n' +
-            '2️⃣ Informe sua escolha neste ticket.\n' +
+            '1️⃣ Escolha a quantidade de Caixas.\n' +
+            '2️⃣ Abra um ticket.\n' +
             '3️⃣ Realize o pagamento.\n' +
             '4️⃣ Envie o comprovante.\n' +
             '5️⃣ Aguarde a aprovação da Staff.\n\n' +
@@ -256,7 +270,7 @@ client.on('interactionCreate', async interaction => {
             '⚠️ **IMPORTANTE**\n\n' +
             '• Confira a quantidade e o valor antes de comprar.\n' +
             '• Guarde o comprovante da compra.\n' +
-            '• Em caso de problemas, informe a Staff neste ticket.\n\n' +
+            '• Em caso de problemas, informe a Staff.\n\n' +
 
             '🪼 **MEDUSA STORE**\n' +
             'Mais Caixas. Mais chances. Mais diversão. ⚡💜'
@@ -342,8 +356,7 @@ client.on('interactionCreate', async interaction => {
         numero < 1
       ) {
         return interaction.reply({
-          content:
-            'Digite uma quantidade válida. Ex: `1`',
+          content: 'Digite uma quantidade válida. Ex: `1`',
           ephemeral: true
         });
       }
@@ -407,7 +420,7 @@ client.on('interactionCreate', async interaction => {
           `🎁 **Quantidade:** ${numero} Caixa(s)\n` +
           `💰 **Valor total:** R$ ${valorTotal}\n\n` +
           'Confira os dados acima.\n\n' +
-          'Quando estiver tudo certo, clique em **Realizar pagamento**.'
+          'Clique em **Realizar pagamento** para continuar.'
         );
 
       await channel.send({
@@ -562,14 +575,14 @@ client.on('interactionCreate', async interaction => {
           permissionOverwrites: [
             {
               id: interaction.guild.roles.everyone.id,
-              deny: [PermissionFlagsBits.ViewChannel]
+              deny: [PermissionFlags.ViewChannel]
             },
             {
               id: interaction.user.id,
               allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.ReadMessageHistory
+                PermissionFlags.ViewChannel,
+                PermissionFlags.SendMessages,
+                PermissionFlags.ReadMessageHistory
               ]
             }
           ]
@@ -676,13 +689,13 @@ client.on('interactionCreate', async interaction => {
       ticket.status = 'aprovado';
       ticket.aprovadoPor = interaction.user.id;
 
-      await interaction.reply(
-        '✅ **Pagamento aprovado!**\n\n' +
-        'Agora escolha a recompensa que será enviada ao comprador:'
-      );
-
-      return interaction.channel.send({
-        components: [recompensaMenu()]
+      // SOMENTE A STAFF QUE CLICOU VÊ O MENU
+      return interaction.reply({
+        content:
+          '✅ **Pagamento aprovado!**\n\n' +
+          '🎁 Escolha a recompensa que o comprador receberá:',
+        components: [recompensaMenu()],
+        ephemeral: true
       });
     }
 
@@ -725,50 +738,61 @@ client.on('interactionCreate', async interaction => {
 
       if (!recompensa) {
         return interaction.reply({
-          content:
-            'Recompensa inválida.',
+          content: 'Recompensa inválida.',
           ephemeral: true
         });
       }
 
-      ticket.recompensa =
-        recompensa.label;
+      ticket.recompensa = recompensa.label;
 
-      const comprador =
-        await client.users.fetch(
+      let comprador;
+
+      try {
+        comprador = await client.users.fetch(
           ticket.userId
         );
+      } catch (error) {
+        console.error(
+          'Erro ao encontrar comprador:',
+          error
+        );
+
+        return interaction.update({
+          content:
+            '❌ Não consegui encontrar o comprador.',
+          components: []
+        });
+      }
 
       try {
 
         await comprador.send(
           '🎁 **MEDUSA STORE**\n\n' +
           '✅ Seu pagamento foi aprovado!\n\n' +
-          `🎁 **Recompensa:** ${recompensa.label}\n\n` +
+          `🎁 **Sua recompensa:** ${recompensa.label}\n\n` +
           'Obrigado pela compra! 🪼💜'
         );
 
-        await interaction.update({
+        // A confirmação continua SOMENTE para a Staff
+        return interaction.update({
           content:
-            `✅ Recompensa **${recompensa.label}** enviada por PV para ${comprador}.`,
+            `✅ Recompensa **${recompensa.label}** enviada no PV do comprador.`,
           components: []
         });
 
       } catch (error) {
 
         console.error(
-          'Não foi possível enviar a DM:',
+          'Erro ao enviar DM:',
           error
         );
 
-        await interaction.update({
+        return interaction.update({
           content:
-            `⚠️ A recompensa foi selecionada como **${recompensa.label}**, mas não consegui enviar a DM. As mensagens privadas do comprador podem estar fechadas.`,
+            '⚠️ Não consegui enviar a recompensa por PV. O comprador pode estar com as DMs fechadas.',
           components: []
         });
       }
-
-      return;
     }
 
     // =========================
