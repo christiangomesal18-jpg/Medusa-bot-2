@@ -8,9 +8,7 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
+  StringSelectMenuBuilder,
   REST,
   Routes,
   SlashCommandBuilder
@@ -90,7 +88,6 @@ client.on('interactionCreate', async interaction => {
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
           '**💸 VALOR DA CAIXA**\n\n' +
-
           '🎁 1 Caixa — **R$ 0,50**\n\n' +
 
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -112,7 +109,6 @@ client.on('interactionCreate', async interaction => {
         embeds: [embed],
         components: [botoes]
       });
-
     }
 
     // ====================================
@@ -132,7 +128,7 @@ client.on('interactionCreate', async interaction => {
         .setCustomId('quantidade')
         .setLabel('Quantidade de caixas')
         .setPlaceholder('Digite a quantidade. Ex: 1')
-        .setStyle(TextInputStyle.Short)
+        .setStyle(1)
         .setRequired(true);
 
       modal.addComponents(
@@ -141,7 +137,6 @@ client.on('interactionCreate', async interaction => {
       );
 
       return interaction.showModal(modal);
-
     }
 
     // ====================================
@@ -166,7 +161,6 @@ client.on('interactionCreate', async interaction => {
           content: '❌ Digite uma quantidade válida.',
           ephemeral: true
         });
-
       }
 
       const valor = (quantidade * 0.50)
@@ -188,7 +182,6 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
-
             },
 
             {
@@ -199,11 +192,9 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.ReadMessageHistory
               ]
-
             }
 
           ]
-
         });
 
       tickets.set(interaction.user.id, {
@@ -261,7 +252,6 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
-
     }
 
     // ====================================
@@ -287,7 +277,6 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
 
         });
-
       }
 
       if (!PIX_KEY) {
@@ -300,7 +289,6 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
 
         });
-
       }
 
       const pagamento =
@@ -416,7 +404,6 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
-
     }
 
     // ====================================
@@ -436,7 +423,6 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
-
     }
 
     // ====================================
@@ -462,23 +448,258 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
 
         });
-
       }
+
+      const ticket =
+        [...tickets.values()].find(
+
+          t =>
+            t.paymentChannelId ===
+            interaction.channel.id
+
+        );
+
+      if (!ticket) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Ticket não encontrado.',
+
+          ephemeral: true
+
+        });
+      }
+
+      const menu =
+        new StringSelectMenuBuilder()
+
+          .setCustomId(
+            `recompensa_${ticket.userId}`
+          )
+
+          .setPlaceholder(
+            '🎁 Escolha a recompensa do comprador'
+          )
+
+          .addOptions(
+
+            {
+              label: 'R$ 50,00',
+              value: '50',
+              emoji: '💵'
+            },
+
+            {
+              label: 'R$ 25,00',
+              value: '25',
+              emoji: '💵'
+            },
+
+            {
+              label: 'R$ 10,00',
+              value: '10',
+              emoji: '💵'
+            },
+
+            {
+              label: 'R$ 5,00',
+              value: '5',
+              emoji: '💵'
+            },
+
+            {
+              label: 'R$ 2,00',
+              value: '2',
+              emoji: '💵'
+            },
+
+            {
+              label: 'Cargo Personalizado',
+              value: 'personalizado',
+              emoji: '🎨'
+            },
+
+            {
+              label: 'Cargo Especial 1',
+              value: 'especial1',
+              emoji: '⭐'
+            },
+
+            {
+              label: 'Cargo Especial 2',
+              value: 'especial2',
+              emoji: '🌟'
+            },
+
+            {
+              label: 'Nada',
+              value: 'nada',
+              emoji: '📦'
+            }
+
+          );
+
+      const row =
+        new ActionRowBuilder()
+          .addComponents(menu);
 
       return interaction.reply({
 
         content:
-          '✅ **Comprovante aceito!**\n\n' +
-          'O pagamento foi confirmado.',
+          '🎁 **Escolha secretamente a recompensa do comprador:**',
 
-        ephemeral: true
+        components:
+          [row],
+
+        ephemeral:
+          true
 
       });
 
     }
 
     // ====================================
-    // REJEITAR COMPROVANTE
+    // ESCOLHER RECOMPENSA
+    // ====================================
+
+    if (
+      interaction.isStringSelectMenu() &&
+      interaction.customId.startsWith('recompensa_')
+    ) {
+
+      if (
+        !interaction.memberPermissions?.has(
+          PermissionFlagsBits.ManageChannels
+        )
+      ) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Apenas a Staff pode escolher a recompensa.',
+
+          ephemeral: true
+
+        });
+      }
+
+      const userId =
+        interaction.customId
+          .replace('recompensa_', '');
+
+      const recompensa =
+        interaction.values[0];
+
+      const usuario =
+        await client.users.fetch(userId);
+
+      let mensagem = '';
+
+      if (recompensa === '50') {
+
+        mensagem =
+          '💵 **Parabéns!**\n\n' +
+          'Você ganhou **R$ 50,00**!';
+
+      }
+
+      else if (recompensa === '25') {
+
+        mensagem =
+          '💵 **Parabéns!**\n\n' +
+          'Você ganhou **R$ 25,00**!';
+
+      }
+
+      else if (recompensa === '10') {
+
+        mensagem =
+          '💵 **Parabéns!**\n\n' +
+          'Você ganhou **R$ 10,00**!';
+
+      }
+
+      else if (recompensa === '5') {
+
+        mensagem =
+          '💵 **Parabéns!**\n\n' +
+          'Você ganhou **R$ 5,00**!';
+
+      }
+
+      else if (recompensa === '2') {
+
+        mensagem =
+          '💵 **Parabéns!**\n\n' +
+          'Você ganhou **R$ 2,00**!';
+
+      }
+
+      else if (
+        recompensa === 'personalizado'
+      ) {
+
+        mensagem =
+          '🎨 **Parabéns!**\n\n' +
+          'Você ganhou um **Cargo Personalizado**!';
+
+      }
+
+      else if (
+        recompensa === 'especial1'
+      ) {
+
+        mensagem =
+          '⭐ **Parabéns!**\n\n' +
+          'Você ganhou o **Cargo Especial 1**!';
+
+      }
+
+      else if (
+        recompensa === 'especial2'
+      ) {
+
+        mensagem =
+          '🌟 **Parabéns!**\n\n' +
+          'Você ganhou o **Cargo Especial 2**!';
+
+      }
+
+      else {
+
+        mensagem =
+          '📦 **Resultado da sua caixa**\n\n' +
+          'Dessa vez você não ganhou uma recompensa.';
+
+      }
+
+      try {
+
+        await usuario.send(mensagem);
+
+      } catch (error) {
+
+        console.log(
+          'Não foi possível enviar o PV do comprador.'
+        );
+
+      }
+
+      return interaction.update({
+
+        content:
+          '✅ Recompensa enviada no PV do comprador.',
+
+        components:
+          []
+
+      });
+
+    }
+
+    // ====================================
+    // REJEITAR
     // ====================================
 
     if (
@@ -500,7 +721,6 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
 
         });
-
       }
 
       return interaction.reply({
