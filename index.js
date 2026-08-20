@@ -17,11 +17,7 @@ const {
 } = require('discord.js');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+  intents: [GatewayIntentBits.Guilds]
 });
 
 const TOKEN = process.env.TOKEN;
@@ -68,9 +64,9 @@ client.on('interactionCreate', async interaction => {
 
   try {
 
-    // ==============================
+    // ====================================
     // PAINEL
-    // ==============================
+    // ====================================
 
     if (
       interaction.isChatInputCommand() &&
@@ -94,6 +90,7 @@ client.on('interactionCreate', async interaction => {
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
 
           '**💸 VALOR DA CAIXA**\n\n' +
+
           '🎁 1 Caixa — **R$ 0,50**\n\n' +
 
           '━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -115,11 +112,12 @@ client.on('interactionCreate', async interaction => {
         embeds: [embed],
         components: [botoes]
       });
+
     }
 
-    // ==============================
-    // COMPRAR
-    // ==============================
+    // ====================================
+    // COMPRAR CAIXA
+    // ====================================
 
     if (
       interaction.isButton() &&
@@ -143,11 +141,12 @@ client.on('interactionCreate', async interaction => {
       );
 
       return interaction.showModal(modal);
+
     }
 
-    // ==============================
+    // ====================================
     // CRIAR TICKET
-    // ==============================
+    // ====================================
 
     if (
       interaction.isModalSubmit() &&
@@ -167,6 +166,7 @@ client.on('interactionCreate', async interaction => {
           content: '❌ Digite uma quantidade válida.',
           ephemeral: true
         });
+
       }
 
       const valor = (quantidade * 0.50)
@@ -188,6 +188,7 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
+
             },
 
             {
@@ -198,24 +199,20 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.ReadMessageHistory
               ]
+
             }
 
           ]
+
         });
 
       tickets.set(interaction.user.id, {
 
         userId: interaction.user.id,
-
         quantidade: quantidade,
-
         valor: valor,
-
         ticketChannelId: canal.id,
-
-        paymentChannelId: null,
-
-        comprovante: false
+        paymentChannelId: null
 
       });
 
@@ -247,20 +244,29 @@ client.on('interactionCreate', async interaction => {
       );
 
       await canal.send({
+
         content: `${interaction.user}`,
+
         embeds: [embed],
+
         components: [botoes]
+
       });
 
       return interaction.reply({
-        content: `✅ Seu ticket foi criado: ${canal}`,
+
+        content:
+          `✅ Seu ticket foi criado: ${canal}`,
+
         ephemeral: true
+
       });
+
     }
 
-    // ==============================
-    // PAGAMENTO
-    // ==============================
+    // ====================================
+    // REALIZAR PAGAMENTO
+    // ====================================
 
     if (
       interaction.isButton() &&
@@ -274,18 +280,27 @@ client.on('interactionCreate', async interaction => {
       if (!ticket) {
 
         return interaction.reply({
-          content: '❌ Ticket não encontrado.',
+
+          content:
+            '❌ Ticket não encontrado.',
+
           ephemeral: true
+
         });
+
       }
 
       if (!PIX_KEY) {
 
         return interaction.reply({
+
           content:
             '❌ A variável PIX_KEY não está configurada.',
+
           ephemeral: true
+
         });
+
       }
 
       const pagamento =
@@ -306,6 +321,7 @@ client.on('interactionCreate', async interaction => {
               deny: [
                 PermissionFlagsBits.ViewChannel
               ]
+
             },
 
             {
@@ -318,9 +334,11 @@ client.on('interactionCreate', async interaction => {
                 PermissionFlagsBits.ReadMessageHistory,
                 PermissionFlagsBits.AttachFiles
               ]
+
             }
 
           ]
+
         });
 
       ticket.paymentChannelId =
@@ -328,9 +346,11 @@ client.on('interactionCreate', async interaction => {
 
       const embed =
         new EmbedBuilder()
+
           .setTitle(
             '💳 PAGAMENTO — MEDUSA STORE'
           )
+
           .setDescription(
 
             `🎁 Caixas: **${ticket.quantidade}**\n` +
@@ -342,7 +362,7 @@ client.on('interactionCreate', async interaction => {
 
             '📸 **Envie o comprovante neste canal.**\n\n' +
 
-            '⚠️ O comprovante é obrigatório.'
+            '⚠️ Depois de enviar, aguarde a Staff.'
 
           );
 
@@ -356,10 +376,22 @@ client.on('interactionCreate', async interaction => {
             .setStyle(ButtonStyle.Primary),
 
           new ButtonBuilder()
+            .setCustomId('aceitar_comprovante')
+            .setLabel('Aceitar comprovante')
+            .setEmoji('✅')
+            .setStyle(ButtonStyle.Success),
+
+          new ButtonBuilder()
+            .setCustomId('rejeitar_comprovante')
+            .setLabel('Rejeitar comprovante')
+            .setEmoji('❌')
+            .setStyle(ButtonStyle.Danger),
+
+          new ButtonBuilder()
             .setCustomId('fechar_pagamento')
             .setLabel('Fechar')
             .setEmoji('🔒')
-            .setStyle(ButtonStyle.Danger)
+            .setStyle(ButtonStyle.Secondary)
 
         );
 
@@ -384,11 +416,12 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
+
     }
 
-    // ==============================
+    // ====================================
     // COPIAR PIX
-    // ==============================
+    // ====================================
 
     if (
       interaction.isButton() &&
@@ -403,11 +436,88 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true
 
       });
+
     }
 
-    // ==============================
+    // ====================================
+    // ACEITAR COMPROVANTE
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'aceitar_comprovante'
+    ) {
+
+      if (
+        !interaction.memberPermissions?.has(
+          PermissionFlagsBits.ManageChannels
+        )
+      ) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Apenas a Staff pode aceitar o comprovante.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      return interaction.reply({
+
+        content:
+          '✅ **Comprovante aceito!**\n\n' +
+          'O pagamento foi confirmado.',
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
+    // REJEITAR COMPROVANTE
+    // ====================================
+
+    if (
+      interaction.isButton() &&
+      interaction.customId === 'rejeitar_comprovante'
+    ) {
+
+      if (
+        !interaction.memberPermissions?.has(
+          PermissionFlagsBits.ManageChannels
+        )
+      ) {
+
+        return interaction.reply({
+
+          content:
+            '❌ Apenas a Staff pode rejeitar o comprovante.',
+
+          ephemeral: true
+
+        });
+
+      }
+
+      return interaction.reply({
+
+        content:
+          '❌ **Comprovante rejeitado.**\n\n' +
+          'Peça ao comprador para enviar um novo comprovante.',
+
+        ephemeral: true
+
+      });
+
+    }
+
+    // ====================================
     // FECHAR
-    // ==============================
+    // ====================================
 
     if (
       interaction.isButton() &&
@@ -428,6 +538,7 @@ client.on('interactionCreate', async interaction => {
           .catch(() => {});
 
       }, 1500);
+
     }
 
   } catch (error) {
@@ -435,51 +546,6 @@ client.on('interactionCreate', async interaction => {
     console.error('ERRO:', error);
 
   }
-
-});
-
-// ==============================
-// RECEBER COMPROVANTE
-// ==============================
-
-client.on('messageCreate', async message => {
-
-  if (message.author.bot) return;
-
-  const ticket =
-    [...tickets.values()].find(
-
-      t =>
-        t.paymentChannelId ===
-        message.channel.id
-
-    );
-
-  if (!ticket) return;
-
-  if (
-    message.author.id !==
-    ticket.userId
-  ) return;
-
-  if (
-    message.attachments.size === 0
-  ) {
-
-    await message.reply(
-      '📸 Envie o comprovante como imagem ou arquivo.'
-    );
-
-    return;
-
-  }
-
-  ticket.comprovante = true;
-
-  await message.channel.send(
-    '📸 **Comprovante recebido!**\n\n' +
-    'Aguarde a Staff analisar.'
-  );
 
 });
 
