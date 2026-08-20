@@ -1,4 +1,3 @@
-
 const {
   Client,
   GatewayIntentBits,
@@ -8,10 +7,13 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   REST,
   Routes,
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  StringSelectMenuBuilder
 } = require('discord.js');
 
 const client = new Client({
@@ -125,11 +127,11 @@ client.on('interactionCreate', async interaction => {
         .setTitle('🎁 Comprar Caixa');
 
       const quantidade = new TextInputBuilder()
-        .setCustomId('quantidade')
-        .setLabel('Quantidade de caixas')
-        .setPlaceholder('Digite a quantidade. Ex: 1')
-        .setStyle(1)
-        .setRequired(true);
+  .setCustomId('quantidade')
+  .setLabel('Quantidade de caixas')
+  .setPlaceholder('Digite a quantidade. Ex: 1')
+  .setStyle(TextInputStyle.Short)
+  .setRequired(true);
 
       modal.addComponents(
         new ActionRowBuilder()
